@@ -175,7 +175,7 @@ function buildHeader(subtitle, title) {
     backgroundColor: BRAND.navy,
     paddingAll: 'lg',
     contents: [
-      { type: 'text', text: 'RACYSPEED', color: BRAND.gold, weight: 'bold', size: 'sm' },
+      { type: 'text', text: "RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
       { type: 'text', text: title, color: '#FFFFFF', weight: 'bold', size: 'xl', margin: 'sm' },
       ...(subtitle ? [{ type: 'text', text: subtitle, color: '#C9CEDC', size: 'xs', margin: 'sm' }] : [])
     ]
@@ -209,33 +209,88 @@ function buildSelectableCard(label, subtitle, actionText, accentColor) {
   };
 }
 
-function buildMenuFlex() {
-  const washNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'wash');
-  const coatingNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'coating');
-
+function buildCategoryFlex() {
   return {
     type: 'flex',
-    altText: '洗車メニュー選択',
+    altText: '洗車orコーティングを選択',
     contents: {
       type: 'bubble',
-      header: buildHeader('ご希望のメニューをお選びください', 'ご予約メニュー'),
+      header: buildHeader('まずはメニューの種類をお選びください', 'ご予約メニュー'),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '🚗  洗車コース', weight: 'bold', size: 'md', color: BRAND.navy },
-          ...washNames.map(name =>
-            buildSelectableCard(name, `S ¥${MENUS[name].prices.S.toLocaleString()}〜 / XL ¥${MENUS[name].prices.XL.toLocaleString()}`, name, BRAND.navy)
-          ),
-          { type: 'separator', margin: 'xl' },
-          { type: 'text', text: '✨  高級コーティング', weight: 'bold', size: 'md', color: BRAND.goldDark, margin: 'xl' },
-          ...coatingNames.map(name =>
-            buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark)
-          )
+          {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'lg',
+            backgroundColor: BRAND.navy,
+            cornerRadius: 'md',
+            action: { type: 'message', label: '洗車', text: 'category_wash' },
+            contents: [
+              { type: 'text', text: '🚗  洗車', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+              { type: 'text', text: '純水手洗い／徹底洗車／徹底洗車ライト', size: 'xs', color: '#C9CEDC', margin: 'xs', wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'lg',
+            paddingAll: 'lg',
+            backgroundColor: BRAND.goldDark,
+            cornerRadius: 'md',
+            action: { type: 'message', label: 'コーティング', text: 'category_coating' },
+            contents: [
+              { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+              { type: 'text', text: 'ISM COAT／IZM COAT／OVER COAT SEALANT', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
+            ]
+          }
         ]
       },
       footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
+    }
+  };
+}
+
+function buildWashMenuFlex() {
+  const washNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'wash');
+  return {
+    type: 'flex',
+    altText: '洗車メニュー選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('ご希望の洗車コースをお選びください', '洗車メニュー'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: washNames.map(name =>
+          buildSelectableCard(name, `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜 XXL ¥${MENUS[name].prices.XXL.toLocaleString()}`, name, BRAND.navy)
+        )
+      },
+      footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
+    }
+  };
+}
+
+function buildCoatingMenuFlex() {
+  const coatingNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'coating');
+  return {
+    type: 'flex',
+    altText: 'コーティングメニュー選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('ご希望のコーティングをお選びください', 'コーティングメニュー'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: coatingNames.map(name =>
+          buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark)
+        )
+      },
+      footer: buildFooter('コーティング期間中は他のご予約をお受けできません')
     }
   };
 }
@@ -343,9 +398,19 @@ async function handleUserMessage(event) {
   try {
     if (!userState.step) {
       if (userMessage === '予約' || userMessage === 'メニュー') {
-        await client.replyMessage(event.replyToken, buildMenuFlex());
+        await client.replyMessage(event.replyToken, buildCategoryFlex());
         return;
       }
+    }
+
+    if (userMessage === 'category_wash') {
+      await client.replyMessage(event.replyToken, buildWashMenuFlex());
+      return;
+    }
+
+    if (userMessage === 'category_coating') {
+      await client.replyMessage(event.replyToken, buildCoatingMenuFlex());
+      return;
     }
 
     if (userMessage && Object.keys(MENUS).includes(userMessage)) {
