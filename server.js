@@ -30,7 +30,8 @@ const serviceAccount = {
   universe_domain: "googleapis.com"
 };
 
-const CALENDAR_ID = 'ba7fe62c075319e36884d0ec52c9f7defd7d2ce5828f8b3deeddا7890cb26a91@group.calendar.google.com';
+// ★修正済み: 正しいカレンダーID
+const CALENDAR_ID = 'ba77e62c075319e36884d0ec52c9f7defd7d2ce5828f8b3deedda7890cb26a91@group.calendar.google.com';
 
 const auth = new google.auth.GoogleAuth({
   credentials: serviceAccount,
@@ -38,6 +39,16 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const calendar = google.calendar({ version: 'v3', auth });
+
+// ブランドカラー
+const BRAND = {
+  navy: '#0B1F3A',
+  gold: '#C9A227',
+  goldDark: '#8A6D1D',
+  cream: '#F7F5F0',
+  gray: '#8C8C8C',
+  lightGray: '#B0B0B0'
+};
 
 const MENUS = {
   '純水手洗い洗車': {
@@ -99,7 +110,7 @@ function getNextAvailableSlot() {
   return slot;
 }
 
-async function isCoatingInProgress(startDate, endDate) {
+async function isCoatingInProgress(startDate) {
   try {
     const events = await calendar.events.list({
       calendarId: CALENDAR_ID,
@@ -122,7 +133,8 @@ async function addEventToCalendar(userId, menuName, details) {
   try {
     const menu = MENUS[menuName];
     const startTime = new Date(details.dateTime);
-    const endTime = new Date(startTime.getTime() + menu.duration[details.size] * 60000);
+    const durationMinutes = menu.type === 'wash' ? menu.duration[details.size] : menu.duration;
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
 
     let eventTitle = menuName;
     let eventDescription = `顧客ID: ${userId}\n`;
@@ -154,6 +166,168 @@ async function addEventToCalendar(userId, menuName, details) {
   }
 }
 
+// ==== Flexメッセージ生成（デザイン改善版） ====
+
+function buildHeader(subtitle, title) {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    backgroundColor: BRAND.navy,
+    paddingAll: 'lg',
+    contents: [
+      { type: 'text', text: 'RACYSPEED', color: BRAND.gold, weight: 'bold', size: 'sm' },
+      { type: 'text', text: title, color: '#FFFFFF', weight: 'bold', size: 'xl', margin: 'sm' },
+      ...(subtitle ? [{ type: 'text', text: subtitle, color: '#C9CEDC', size: 'xs', margin: 'sm' }] : [])
+    ]
+  };
+}
+
+function buildFooter(text) {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    paddingAll: 'md',
+    contents: [
+      { type: 'text', text: text, size: 'xxs', color: BRAND.lightGray, align: 'center', wrap: true }
+    ]
+  };
+}
+
+function buildSelectableCard(label, subtitle, actionText, accentColor) {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: label, text: actionText },
+    contents: [
+      { type: 'text', text: label, weight: 'bold', size: 'md', color: accentColor, wrap: true },
+      { type: 'text', text: subtitle, size: 'xs', color: BRAND.gray, margin: 'xs', wrap: true }
+    ]
+  };
+}
+
+function buildMenuFlex() {
+  const washNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'wash');
+  const coatingNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'coating');
+
+  return {
+    type: 'flex',
+    altText: '洗車メニュー選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('ご希望のメニューをお選びください', 'ご予約メニュー'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '🚗  洗車コース', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...washNames.map(name =>
+            buildSelectableCard(name, `S ¥${MENUS[name].prices.S.toLocaleString()}〜 / XL ¥${MENUS[name].prices.XL.toLocaleString()}`, name, BRAND.navy)
+          ),
+          { type: 'separator', margin: 'xl' },
+          { type: 'text', text: '✨  高級コーティング', weight: 'bold', size: 'md', color: BRAND.goldDark, margin: 'xl' },
+          ...coatingNames.map(name =>
+            buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark)
+          )
+        ]
+      },
+      footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
+    }
+  };
+}
+
+function buildSizeFlex(menuName, menu) {
+  const sizeLabels = { S: 'コンパクトカー', M: 'セダン・ミニバン', L: 'ミニバン・SUV', XL: '大型SUV・ミニバン' };
+  const sizeButtons = Object.keys(menu.prices).map(size => ({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: size, text: `size_${size}` },
+    contents: [
+      {
+        type: 'box',
+        layout: 'vertical',
+        flex: 1,
+        contents: [
+          { type: 'text', text: `サイズ ${size}`, weight: 'bold', size: 'sm', color: BRAND.navy },
+          { type: 'text', text: sizeLabels[size], size: 'xxs', color: BRAND.gray, margin: 'xs' }
+        ]
+      },
+      {
+        type: 'text',
+        text: `¥${menu.prices[size].toLocaleString()}`,
+        weight: 'bold',
+        size: 'sm',
+        color: BRAND.goldDark,
+        align: 'end',
+        gravity: 'center'
+      }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'サイズ選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(null, menuName),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...sizeButtons
+        ]
+      },
+      footer: buildFooter('サイズがご不明な場合はお気軽にお問い合わせください')
+    }
+  };
+}
+
+function buildPatternFlex(menuName, menu) {
+  const patternButtons = menu.patterns.map(pattern => ({
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: pattern, text: `pattern_${pattern}` },
+    contents: [
+      { type: 'text', text: pattern, weight: 'bold', size: 'sm', color: BRAND.goldDark }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'コーティングパターン選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(`¥${menu.basePrice.toLocaleString()}〜`, menuName),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '施工パターンをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...patternButtons
+        ]
+      },
+      footer: buildFooter('コーティング期間中は他のご予約をお受けできません')
+    }
+  };
+}
+
+// ==== メッセージハンドラ ====
+
 async function handleUserMessage(event) {
   const userId = event.source.userId;
   const userMessage = event.message.text?.toLowerCase();
@@ -162,26 +336,7 @@ async function handleUserMessage(event) {
   try {
     if (!userState.step) {
       if (userMessage === '予約' || userMessage === 'メニュー') {
-        const buttons = Object.keys(MENUS).map((name) => ({
-          type: 'button',
-          action: { type: 'message', label: name, text: name }
-        }));
-
-        await client.replyMessage(event.replyToken, {
-          type: 'flex',
-          altText: '洗車メニュー選択',
-          contents: {
-            type: 'bubble',
-            body: {
-              type: 'box',
-              layout: 'vertical',
-              contents: [
-                { type: 'text', text: '洗車メニューを選択してください', weight: 'bold', size: 'lg' },
-                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: buttons }
-              ]
-            }
-          }
-        });
+        await client.replyMessage(event.replyToken, buildMenuFlex());
         return;
       }
     }
@@ -192,51 +347,10 @@ async function handleUserMessage(event) {
 
       if (menu.type === 'wash') {
         userState.step = 'select_size';
-        const sizeButtons = Object.keys(menu.prices).map(size => ({
-          type: 'button',
-          action: { type: 'message', label: `${size} - ¥${menu.prices[size].toLocaleString()}`, text: `size_${size}` }
-        }));
-
-        await client.replyMessage(event.replyToken, {
-          type: 'flex',
-          altText: 'サイズ選択',
-          contents: {
-            type: 'bubble',
-            body: {
-              type: 'box',
-              layout: 'vertical',
-              contents: [
-                { type: 'text', text: `${userMessage}`, weight: 'bold', size: 'lg' },
-                { type: 'text', text: 'サイズを選択してください', size: 'sm', color: '#aaaaaa', margin: 'sm' },
-                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: sizeButtons }
-              ]
-            }
-          }
-        });
+        await client.replyMessage(event.replyToken, buildSizeFlex(userMessage, menu));
       } else {
         userState.step = 'select_coating_pattern';
-        const patternButtons = menu.patterns.map(pattern => ({
-          type: 'button',
-          action: { type: 'message', label: pattern, text: `pattern_${pattern}` }
-        }));
-
-        await client.replyMessage(event.replyToken, {
-          type: 'flex',
-          altText: 'コーティングパターン選択',
-          contents: {
-            type: 'bubble',
-            body: {
-              type: 'box',
-              layout: 'vertical',
-              contents: [
-                { type: 'text', text: `${userMessage}`, weight: 'bold', size: 'lg' },
-                { type: 'text', text: `価格: ¥${menu.basePrice.toLocaleString()}`, size: 'sm', margin: 'sm' },
-                { type: 'text', text: '施工パターンを選択してください', size: 'sm', color: '#aaaaaa', margin: 'sm' },
-                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: patternButtons }
-              ]
-            }
-          }
-        });
+        await client.replyMessage(event.replyToken, buildPatternFlex(userMessage, menu));
       }
 
       userStates.set(userId, userState);
@@ -303,7 +417,7 @@ async function handleUserMessage(event) {
       }
 
       const menu = MENUS[userState.selectedMenu];
-      if (menu.type === 'coating' && await isCoatingInProgress(bookingDateTime, bookingDateTime)) {
+      if (menu.type === 'coating' && await isCoatingInProgress(bookingDateTime)) {
         await client.replyMessage(event.replyToken, {
           type: 'text',
           text: 'ご指定の日時はコーティング作業中です。別の日時でお願いいたします。'
@@ -349,7 +463,6 @@ function verifySignature(rawBody, signature) {
   return signature === computed;
 }
 
-// 重要: rawBodyを保持するため express.json() の verify オプションを使用
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
@@ -358,9 +471,6 @@ app.use(express.json({
 
 app.post('/webhook', async (req, res) => {
   const signature = req.get('x-line-signature');
-  console.log('受信署名:', signature);
-  console.log('計算署名:', crypto.createHmac('sha256', lineConfig.channelSecret).update(req.rawBody || Buffer.from('')).digest('base64'));
-  console.log('rawBody存在:', !!req.rawBody);
 
   if (!signature || !verifySignature(req.rawBody, signature)) {
     console.error('署名検証に失敗しました');
