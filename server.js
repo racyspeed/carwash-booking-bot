@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // LINE Messaging API設定
 const lineConfig = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'isE4fi6ZnD5T1phzTAy5lUt2zqoH5zUHWkONDlzly+KGh5WSoYQYp0ffOth/O1iBibby+Qy3oQhioV2Adi/pvgEIWtIpoCKO+M/zHP+1dab/Gcm8s7AnAgtc0Vq3G0Ci4iGdkVmuHto71q5lQslsTAdB04t89/10/w1cDnyIlFU=',
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'isE4fI6ZnD5T1phzTAy5lUtzzqoH5zUHWkONDi2Iy+KGh5WSoYQYp0ffOth/O1iBibby+Oy3oQhioV2AdI/pvgEIWtIpoCKO+M/zHP+ldab/Gcm8s7AnAgtc0Yq3G0Ci4iGdkVmuHto71q5lQsIsTAdB04t89/1O/w1cDnyilFU=',
   channelSecret: process.env.LINE_CHANNEL_SECRET || '860416f5696fb67c18d55d6f057f9f6c'
 };
 
