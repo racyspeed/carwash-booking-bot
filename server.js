@@ -358,6 +358,9 @@ app.use(express.json({
 
 app.post('/webhook', async (req, res) => {
   const signature = req.get('x-line-signature');
+  console.log('受信署名:', signature);
+  console.log('計算署名:', crypto.createHmac('sha256', lineConfig.channelSecret).update(req.rawBody || Buffer.from('')).digest('base64'));
+  console.log('rawBody存在:', !!req.rawBody);
 
   if (!signature || !verifySignature(req.rawBody, signature)) {
     console.error('署名検証に失敗しました');
