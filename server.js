@@ -1,249 +1,490 @@
 const express = require('express');
-const axios = require('axios');
 const crypto = require('crypto');
+const { google } = require('googleapis');
+const line = require('@line/bot-sdk');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
 
-// =====================
-// 定数設定
-// =====================
-
-const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
-
-const PUSH_API_URL = 'https://api.line.biz/v2/bot/message/push';
-
-// =====================
-// メニュー定義
-// =====================
-
-const MENUS = {
-  wash: [
-    {
-      id: 'pure_wash',
-      name: '純水手洗い洗車',
-      prices: { S: 5500, M: 6600, L: 6600, XL: 7700 },
-      times: { S: 2, M: 2.5, L: 2.5, XL: 3 },
-    },
-    {
-      id: 'thorough_wash',
-      name: '徹底洗車',
-      prices: { S: 44000, M: 55000, L: 55000, XL: 66000 },
-      times: { S: 15, M: 15, L: 15, XL: 15 },
-    },
-    {
-      id: 'thorough_wash_light',
-      name: '徹底洗車ライト',
-      prices: { S: 27500, M: 33000, L: 33000, XL: 38500 },
-      times: { S: 7, M: 7, L: 7, XL: 7 },
-    },
-  ],
-  coating: [
-    { id: 'ism_coat_none', name: 'ISM COAT(研磨なし)', duration: 3 },
-    { id: 'ism_coat_light', name: 'ISM COAT(軽研磨)', duration: 5 },
-    { id: 'ism_coat_heavy', name: 'ISM COAT(2周研磨)', duration: 7 },
-  ],
+// LINE Messaging API設定
+const lineConfig = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'isE4fi6ZnD5T1phzTAy5lUt2zqoH5zUHWkONDlzly+KGh5WSoYQYp0ffOth/O1iBibby+Qy3oQhioV2Adi/pvgEIWtIpoCKO+M/zHP+1dab/Gcm8s7AnAgtc0Vq3G0Ci4iGdkVmuHto71q5lQslsTAdB04t89/10/w1cDnyIlFU=',
+  channelSecret: process.env.LINE_CHANNEL_SECRET || '860416f5696fb67c18d55d6f0575f96c'
 };
 
-// ユーザーセッション管理
-const userSessions = {};
+const client = new line.Client(lineConfig);
 
-// =====================
-// ユーティリティ関数
-// =====================
+// Google Calendar API設定
+const serviceAccount = {
+  type: "service_account",
+  project_id: "carwashbooking-502611",
+  private_key_id: "f0b438470a7c80e0f7eecac02fab48b4752c304e",
+  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCz1OKdXriIl70N\n/CqH7+jpE84NfhhOfTuvavZX0g3lHsUKoqNuEk1S0kCF+q/9sY6MDhfe6DU98LGh\nbtSeX357N4UscBwsdOCU70TEhbGIW88HhvqAbebeFhulZJF4KE1AM4Sx4H0DbFAk\n1UNF4n6j0ZSoxRnPVLqEBmuPZjIt3DotCht93x3skT88UqSV/h0mlv88htEHgSUG\nk2b1Y3kMwh/2DlJ3PGAF4RTBSScjvQEKyBrC8cZJZgscaN5F+7sMM8tNCFcfm4jW\nf4Lcm35k8p66EVgrencFeVSQ/7spjofkG0Ih+Ia1Rp4Jf74C8BlA+JqJx3RK0Vjl\nqDL0dGh1AgMBAAECggEACyRTABYYz9m67G1lwzNhlmNUPnDEF8TZmFZDuhA5LSt5\nYN3Py2eV495EAikUk17XaqUK5JQ1jEdn8g0YXlGjWAYKGcU+caCyM3gZpiV0aPLr\nQleiGKf2iGcNQnOXMb8pfiNTAuRaSoaA9q9B8kgEuaioEcbYgQiKX9i3/FQEIuQq\nG1lnJJi7H7iCY8y8jBDzsxUsYAD4vyhEvFejH7mGrUAsRwwambYStgDqZBTxpp2r\nPzHy9hr/N1lfj4iGohXjiVIB588dptJjO5liMWuKq+wZGlv8du3ixOfVL+Z0PQQN\n4gjFlZ5iMnAheoESXTydvrpjvhdNKHpwZ5hSIMbiZwKBgQDcwQ4QZzaFbPUP1NE5\nrp828in8Bfr6xkRS8WfQ/Otcdgj7LHXj3beF22a8qefWer3tLYnkf5nt73e3iyLK\nNaMUk0/HvIJ833k9y6Sy7dYWLwiXH3m39gt9ntwMS5buV7fXQFbJS0uHt4zR2hci\nVIhFhQBn5qi0fgBCs05RQuEDDwKBgQDQizEg/0a71st+mkgOFJM2BPW7PAJpVYGM\nSIeSmzbNQkgxusl5C6dP3meICc3Vt0GZqEWMCMaQ3clzMO7wDqyWwq8KaqmB/U1h\nxX8Pr1z3A1V9oSS8HLJ8A8BMewV+RAdeQ5SUrjO01AgLIOefmis9mVk6ZKNqKlcJ\nRR/tikwMOwKBgFtdO2jmjtYiBjsLJZzt/M9M4rt/7iQkMtrxNrp0MyUNZSIvgItS\nlEY+TAMBfwZxvnGPS2bauOaVGcNJPpjaIii932MXThpIk3FT+1JixRxhUvjY+hN9\nLbxMJ16fWlRC0b+wzTp6g0QkX4/q53A59Dxxk31tJZ2uGIWCmINhXqdZAoGBAISt\nOalzn63b3wWB5HvIzUud5jSj3ijjtJLqhg5Y34nBNKsm2g0/w8eFiLq8+g6RE5RN\nwUlxP9tkr0ixBiMGQvl7jN+Esqk33WZpvwfcmrmwjlBqGDPx0gAiZtKBpiIJ5+Ip\n/rqFBfJyv1dNLO+WpxH+oQ0MgAcIPu1v4/s9dFqHAoGAaHe5wanWu//x2Vl249HD\naO02YF8MiSyuj5TqH7KTkjRNEQexNMjWYkuwyYtplciIMyjl/PpIxXna3VpCZkuB\nq/KwUx+yP3Pa3jq8GbHrPF+dK5yeUFdEX1GR9IcYSpXOWYc6qaRC76kY/Si8YiKG\nSkeoFYcR+f29N8m1+QM4dwQ=\n-----END PRIVATE KEY-----\n",
+  client_email: "carwash-bot@carwashbooking-502611.iam.gserviceaccount.com",
+  client_id: "101401107788820683308",
+  auth_uri: "https://accounts.google.com/o/oauth2/auth",
+  token_uri: "https://oauth2.googleapis.com/token",
+  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+  client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/carwash-bot%40carwashbooking-502611.iam.gserviceaccount.com",
+  universe_domain: "googleapis.com"
+};
 
-async function sendLineMessage(userId, messages) {
+const CALENDAR_ID = 'ba7fe62c075319e36884d0ec52c9f7defd7d2ce5828f8b3deeddا7890cb26a91@group.calendar.google.com';
+
+// Google Calendar認証
+const auth = new google.auth.GoogleAuth({
+  credentials: serviceAccount,
+  scopes: ['https://www.googleapis.com/auth/calendar']
+});
+
+const calendar = google.calendar({ version: 'v3', auth });
+
+// メニュー定義
+const MENUS = {
+  '純水手洗い洗車': {
+    type: 'wash',
+    prices: { S: 5500, M: 6600, L: 6600, XL: 7700 },
+    duration: { S: 120, M: 150, L: 150, XL: 180 }
+  },
+  '徹底洗車': {
+    type: 'wash',
+    prices: { S: 44000, M: 55000, L: 55000, XL: 66000 },
+    duration: { S: 900, M: 900, L: 900, XL: 900 }
+  },
+  '徹底洗車ライト': {
+    type: 'wash',
+    prices: { S: 27500, M: 33000, L: 33000, XL: 38500 },
+    duration: { S: 420, M: 420, L: 420, XL: 420 }
+  },
+  'ISM COAT': {
+    type: 'coating',
+    basePrice: 66000,
+    duration: 420,
+    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
+  },
+  'IZM COAT': {
+    type: 'coating',
+    basePrice: 110000,
+    duration: 420,
+    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
+  },
+  'OVER COAT SEALANT': {
+    type: 'coating',
+    basePrice: 220000,
+    duration: 420,
+    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
+  }
+};
+
+// ユーザーの予約状態管理
+const userStates = new Map();
+
+// ビジネスロジック関数
+function isBusinessOpen(date) {
+  const day = date.getDay();
+  const hour = date.getHours();
+  
+  // 月曜(1)と火曜(2)は定休日
+  if (day === 1 || day === 2) return false;
+  
+  // 営業時間: 10:00～18:00
+  if (hour < 10 || hour >= 18) return false;
+  
+  return true;
+}
+
+function getNextAvailableSlot() {
+  const now = new Date();
+  let slot = new Date(now);
+  
+  // 15分後の枠から開始
+  slot.setMinutes(Math.ceil(slot.getMinutes() / 15) * 15);
+  
+  // 営業時間内の枠を探す
+  while (!isBusinessOpen(slot)) {
+    slot.setHours(slot.getHours() + 1);
+    
+    if (slot.getHours() >= 18) {
+      slot.setHours(10);
+      slot.setDate(slot.getDate() + 1);
+    }
+  }
+  
+  return slot;
+}
+
+async function isCoatingInProgress(startDate, endDate) {
   try {
-    await axios.post(
-      `${PUSH_API_URL}/push`,
-      {
-        to: userId,
-        messages: Array.isArray(messages) ? messages : [messages],
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`,
-        },
-      }
+    const events = await calendar.events.list({
+      calendarId: CALENDAR_ID,
+      timeMin: new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      timeMax: startDate.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime'
+    });
+
+    const coatingEvent = events.data.items?.find(event => 
+      event.summary?.includes('COAT') || event.summary?.includes('SEALANT')
     );
-    console.log(`Message sent to ${userId}`);
+
+    return !!coatingEvent;
   } catch (error) {
-    console.error('LINE message error:', error.response?.data || error.message);
+    console.error('Error checking coating progress:', error);
+    return false;
   }
 }
 
-function validateSignature(body, signature) {
-  const hash = crypto.createHmac('sha256', CHANNEL_SECRET).update(body).digest('base64');
-  return hash === signature;
+async function addEventToCalendar(userId, menuName, details) {
+  try {
+    const menu = MENUS[menuName];
+    const startTime = new Date(details.dateTime);
+    const endTime = new Date(startTime.getTime() + menu.duration[details.size] * 60000);
+
+    let eventTitle = menuName;
+    let eventDescription = `顧客ID: ${userId}\n`;
+
+    if (menu.type === 'wash') {
+      eventTitle += ` (${details.size})`;
+      eventDescription += `サイズ: ${details.size}\n価格: ¥${menu.prices[details.size].toLocaleString()}`;
+    } else {
+      eventDescription += `パターン: ${details.pattern}\n価格: ¥${menu.basePrice.toLocaleString()}`;
+    }
+
+    const event = {
+      summary: eventTitle,
+      description: eventDescription,
+      start: { dateTime: startTime.toISOString(), timeZone: 'Asia/Tokyo' },
+      end: { dateTime: endTime.toISOString(), timeZone: 'Asia/Tokyo' },
+      reminders: {
+        useDefault: true
+      }
+    };
+
+    const result = await calendar.events.insert({
+      calendarId: CALENDAR_ID,
+      resource: event
+    });
+
+    return result.data;
+  } catch (error) {
+    console.error('Error adding event to calendar:', error);
+    throw error;
+  }
 }
 
-// =====================
-// メッセージハンドラー
-// =====================
+// LINE メッセージハンドラ
+async function handleUserMessage(event) {
+  const userId = event.source.userId;
+  const userMessage = event.message.text?.toLowerCase();
+  let userState = userStates.get(userId) || {};
 
-async function handleText(userId, text) {
-  if (text === '予約') {
-    userSessions[userId] = { step: 'menu_type' };
-    
-    await sendLineMessage(userId, {
-      type: 'template',
-      altText: 'メニュー選択',
-      template: {
-        type: 'buttons',
-        text: 'ご利用メニューを選択してください',
-        actions: [
-          { type: 'postback', label: '洗車', data: 'action=menu_type&type=wash' },
-          { type: 'postback', label: 'コーティング', data: 'action=menu_type&type=coating' },
-        ],
-      },
-    });
-  } else {
-    await sendLineMessage(userId, {
+  try {
+    // 初期状態 - メニュー選択
+    if (!userState.step) {
+      if (userMessage === '予約' || userMessage === 'メニュー') {
+        const buttons = Object.keys(MENUS).map((name, index) => ({
+          type: 'button',
+          style: 'link',
+          label: name,
+          text: name
+        }));
+
+        await client.replyMessage(event.replyToken, {
+          type: 'flex',
+          altText: '洗車メニュー選択',
+          contents: {
+            type: 'bubble',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: '洗車メニューを選択してください',
+                  weight: 'bold',
+                  size: 'lg'
+                },
+                {
+                  type: 'box',
+                  layout: 'vertical',
+                  margin: 'md',
+                  spacing: 'sm',
+                  contents: buttons.map(btn => ({
+                    type: 'button',
+                    action: {
+                      type: 'message',
+                      label: btn.label,
+                      text: btn.label
+                    }
+                  }))
+                }
+              ]
+            }
+          }
+        });
+        return;
+      }
+    }
+
+    // ステップ1 - メニュー選択後、サイズ選択
+    if (userMessage && Object.keys(MENUS).includes(userMessage)) {
+      userState.selectedMenu = userMessage;
+      const menu = MENUS[userMessage];
+
+      if (menu.type === 'wash') {
+        userState.step = 'select_size';
+        const sizeButtons = Object.keys(menu.prices).map(size => ({
+          type: 'button',
+          action: {
+            type: 'message',
+            label: `${size} - ¥${menu.prices[size].toLocaleString()}`,
+            text: `size_${size}`
+          }
+        }));
+
+        await client.replyMessage(event.replyToken, {
+          type: 'flex',
+          altText: 'サイズ選択',
+          contents: {
+            type: 'bubble',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: `${userMessage}`,
+                  weight: 'bold',
+                  size: 'lg'
+                },
+                {
+                  type: 'text',
+                  text: 'サイズを選択してください',
+                  size: 'sm',
+                  color: '#aaaaaa',
+                  margin: 'sm'
+                },
+                {
+                  type: 'box',
+                  layout: 'vertical',
+                  margin: 'md',
+                  spacing: 'sm',
+                  contents: sizeButtons
+                }
+              ]
+            }
+          }
+        });
+      } else {
+        // コーティング
+        userState.step = 'select_coating_pattern';
+        const patternButtons = menu.patterns.map(pattern => ({
+          type: 'button',
+          action: {
+            type: 'message',
+            label: pattern,
+            text: `pattern_${pattern}`
+          }
+        }));
+
+        await client.replyMessage(event.replyToken, {
+          type: 'flex',
+          altText: 'コーティングパターン選択',
+          contents: {
+            type: 'bubble',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: `${userMessage}`,
+                  weight: 'bold',
+                  size: 'lg'
+                },
+                {
+                  type: 'text',
+                  text: `価格: ¥${menu.basePrice.toLocaleString()}`,
+                  size: 'sm',
+                  margin: 'sm'
+                },
+                {
+                  type: 'text',
+                  text: '施工パターンを選択してください',
+                  size: 'sm',
+                  color: '#aaaaaa',
+                  margin: 'sm'
+                },
+                {
+                  type: 'box',
+                  layout: 'vertical',
+                  margin: 'md',
+                  spacing: 'sm',
+                  contents: patternButtons
+                }
+              ]
+            }
+          }
+        });
+      }
+
+      userStates.set(userId, userState);
+      return;
+    }
+
+    // ステップ2 - サイズ選択
+    if (userState.step === 'select_size' && userMessage?.startsWith('size_')) {
+      const size = userMessage.replace('size_', '').toUpperCase();
+      userState.size = size;
+      userState.step = 'select_datetime';
+
+      const nextSlot = getNextAvailableSlot();
+      const dateStr = nextSlot.toLocaleDateString('ja-JP');
+      const timeStr = nextSlot.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `サイズ: ${size}を選択しました。\n次のご都合の良い日時をお知らせください。\n(例: 2024年7月20日 14:30)\n\n次の利用可能枠: ${dateStr} ${timeStr}`
+      });
+
+      userStates.set(userId, userState);
+      return;
+    }
+
+    // ステップ3 - コーティングパターン選択
+    if (userState.step === 'select_coating_pattern' && userMessage?.startsWith('pattern_')) {
+      const pattern = userMessage.replace('pattern_', '');
+      userState.pattern = pattern;
+      userState.step = 'select_datetime';
+
+      const nextSlot = getNextAvailableSlot();
+      const dateStr = nextSlot.toLocaleDateString('ja-JP');
+      const timeStr = nextSlot.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `パターン: ${pattern}を選択しました。\n次のご都合の良い日時をお知らせください。\n(例: 2024年7月20日 09:00)\n\n次の利用可能枠: ${dateStr} ${timeStr}`
+      });
+
+      userStates.set(userId, userState);
+      return;
+    }
+
+    // ステップ4 - 日時確認と予約確定
+    if (userState.step === 'select_datetime' && userMessage) {
+      // 日時パース
+      const dateTimeRegex = /(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
+      const match = userMessage.match(dateTimeRegex);
+
+      if (!match) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '日時の形式が正しくありません。\n例: 2024年7月20日 14:30'
+        });
+        return;
+      }
+
+      const [, year, month, day, hour, minute] = match;
+      const bookingDateTime = new Date(year, parseInt(month) - 1, day, hour, minute);
+
+      // 営業時間チェック
+      if (!isBusinessOpen(bookingDateTime)) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '申し訳ございません。ご指定の日時は営業時間外です。\n営業時間: 10:00～18:00\n定休日: 月曜・火曜\n別の日時でお願いいたします。'
+        });
+        return;
+      }
+
+      // コーティング期間チェック
+      const menu = MENUS[userState.selectedMenu];
+      if (menu.type === 'coating' && await isCoatingInProgress(bookingDateTime, bookingDateTime)) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ご指定の日時はコーティング作業中です。別の日時でお願いいたします。'
+        });
+        return;
+      }
+
+      // Google Calendarに登録
+      const bookingDetails = {
+        dateTime: bookingDateTime,
+        size: userState.size || 'N/A',
+        pattern: userState.pattern || 'N/A'
+      };
+
+      await addEventToCalendar(userId, userState.selectedMenu, bookingDetails);
+
+      let confirmMessage = `✅ 予約確定\n\n`;
+      confirmMessage += `メニュー: ${userState.selectedMenu}\n`;
+      confirmMessage += userState.size ? `サイズ: ${userState.size}\n` : '';
+      confirmMessage += userState.pattern ? `パターン: ${userState.pattern}\n` : '';
+      confirmMessage += `日時: ${bookingDateTime.toLocaleString('ja-JP')}\n`;
+      confirmMessage += `\nご予約ありがとうございます！`;
+
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: confirmMessage
+      });
+
+      // ユーザー状態をリセット
+      userStates.delete(userId);
+    }
+  } catch (error) {
+    console.error('Error handling message:', error);
+    await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '「予約」と入力すると予約を開始できます。',
+      text: 'エラーが発生しました。もう一度お試しください。'
     });
   }
 }
 
-async function handlePostback(userId, postbackData) {
-  const data = new URLSearchParams(postbackData);
-  const action = data.get('action');
-
-  if (action === 'menu_type') {
-    const type = data.get('type');
-    userSessions[userId] = { step: 'menu_select', type };
-    
-    const items = MENUS[type];
-    await sendLineMessage(userId, {
-      type: 'template',
-      altText: 'メニュー選択',
-      template: {
-        type: 'buttons',
-        text: 'ご利用のメニューを選択してください',
-        actions: items.map((item) => ({
-          type: 'postback',
-          label: item.name,
-          data: `action=menu_select&menu_id=${item.id}`,
-        })),
-      },
-    });
-  }
-
-  if (action === 'menu_select') {
-    const menuId = data.get('menu_id');
-    userSessions[userId] = { ...userSessions[userId], step: 'size_select', menuId };
-    
-    await sendLineMessage(userId, {
-      type: 'template',
-      altText: '車サイズ選択',
-      template: {
-        type: 'buttons',
-        text: 'お車のサイズをお選びください',
-        actions: [
-          { type: 'postback', label: 'S', data: `action=size_select&size=S` },
-          { type: 'postback', label: 'M', data: `action=size_select&size=M` },
-          { type: 'postback', label: 'L', data: `action=size_select&size=L` },
-          { type: 'postback', label: 'XL', data: `action=size_select&size=XL` },
-        ],
-      },
-    });
-  }
-
-  if (action === 'size_select') {
-    const size = data.get('size');
-    userSessions[userId] = { ...userSessions[userId], step: 'confirm', size };
-    
-    const menu = MENUS[userSessions[userId].type]?.find(m => m.id === userSessions[userId].menuId);
-    const price = menu?.prices?.[size] || 0;
-    const time = menu?.times?.[size] || menu?.duration || 0;
-    
-    await sendLineMessage(userId, {
-      type: 'template',
-      altText: '予約確認',
-      template: {
-        type: 'buttons',
-        text: `ご予約内容\nメニュー: ${menu?.name}\nサイズ: ${size}\n料金: ¥${price}\n所要時間: ${time}時間\n\nこちらでよろしいですか？`,
-        actions: [
-          { type: 'postback', label: '予約する', data: 'action=confirm_booking' },
-          { type: 'postback', label: 'キャンセル', data: 'action=cancel' },
-        ],
-      },
-    });
-  }
-
-  if (action === 'confirm_booking') {
-    await sendLineMessage(userId, {
-      type: 'text',
-      text: 'ご予約ありがとうございました！\n施工予定日の2日前にリマインダーをお送りいたします。',
-    });
-    
-    delete userSessions[userId];
-  }
-
-  if (action === 'cancel') {
-    await sendLineMessage(userId, {
-      type: 'text',
-      text: 'キャンセルしました。ご利用ありがとうございました。',
-    });
-    
-    delete userSessions[userId];
-  }
+// Webhook署名検証
+function verifySignature(body, signature) {
+  const hmac = crypto.createHmac('sha256', lineConfig.channelSecret);
+  hmac.update(body, 'utf8');
+  const computed = hmac.digest('base64');
+  return signature === computed;
 }
 
-// =====================
-// Webhook ハンドラー
-// =====================
+// Expressミドルウェア
+app.use(express.json());
 
+// Webhook受け取り
 app.post('/webhook', async (req, res) => {
   const signature = req.get('x-line-signature');
   const body = JSON.stringify(req.body);
 
-  if (!validateSignature(body, signature)) {
-    return res.status(403).send('Forbidden');
+  if (!verifySignature(body, signature)) {
+    return res.status(403).json({ error: 'Invalid signature' });
   }
 
   try {
     const events = req.body.events;
 
-    for (const event of events) {
-      const userId = event.source.userId;
-
+    await Promise.all(events.map(async (event) => {
       if (event.type === 'message' && event.message.type === 'text') {
-        await handleText(userId, event.message.text);
+        await handleUserMessage(event);
       }
+    }));
 
-      if (event.type === 'postback') {
-        await handlePostback(userId, event.postback.data);
-      }
-    }
-
-    res.sendStatus(200);
+    res.json({ success: true });
   } catch (error) {
     console.error('Webhook error:', error);
-    res.sendStatus(500);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// =====================
 // ヘルスチェック
-// =====================
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/', (req, res) => {
+  res.json({ status: 'Running', timestamp: new Date().toISOString() });
 });
 
-// =====================
 // サーバー起動
-// =====================
-
-const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
-  console.log(`🔗 Webhook URL: https://web-production-7fc6d.up.railway.app/webhook`);
+  console.log(`🚀 LINE洗車予約ボット起動`);
+  console.log(`📍 Webhook: https://web-production-7fc6d.up.railway.app/webhook`);
+  console.log(`⏰ ポート: ${PORT}`);
+  console.log(`📅 カレンダー: ${CALENDAR_ID}`);
 });
-
-module.exports = app;
