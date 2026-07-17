@@ -466,52 +466,137 @@ function buildPatternFlex(menuName, menu) {
 }
 
 const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
+const LEAD_DAYS = 2; // 予約・キャンセルは2日前まで
 
-function buildDateSelectionFlex(menuName, days, statusMap) {
-  const statusIcon = { open: '○', partial: '△', blocked: '✕', closed: '✕' };
-  const statusColor = { open: BRAND.navy, partial: '#B5850C', blocked: BRAND.lightGray, closed: BRAND.lightGray };
+function getMonthMatrix(year, monthIndex) {
+  const firstDay = new Date(year, monthIndex, 1);
+  const lastDay = new Date(year, monthIndex + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startWeekday = firstDay.getDay();
 
-  const rows = days.map(day => {
-    const key = dateKey(day);
-    const info = statusMap[key];
-    const clickable = info.status === 'open' || info.status === 'partial';
-    const label = `${day.getMonth() + 1}/${day.getDate()}（${WEEKDAY_JA[day.getDay()]}）`;
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, monthIndex, d));
+  while (cells.length % 7 !== 0) cells.push(null);
 
-    const row = {
-      type: 'box',
-      layout: 'horizontal',
-      margin: 'sm',
-      paddingAll: 'sm',
-      backgroundColor: clickable ? BRAND.cream : '#EDEDED',
-      cornerRadius: 'md',
-      contents: [
-        { type: 'text', text: label, size: 'sm', color: clickable ? BRAND.navy : BRAND.lightGray, flex: 3, gravity: 'center' },
-        { type: 'text', text: statusIcon[info.status], size: 'md', weight: 'bold', color: statusColor[info.status], flex: 1, align: 'end', gravity: 'center' }
-      ]
-    };
-    if (clickable) {
-      row.action = { type: 'message', label: label, text: `date_${key}` };
-    }
-    return row;
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+  return weeks;
+}
+
+function getDateStatus(date, today, events) {
+  const dow = date.getDay();
+  if (dow === 1 || dow === 2) return 'closed';
+
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((dateOnly - todayOnly) / (24 * 60 * 60 * 1000));
+
+  if (diffDays < 0) return 'past';
+  if (diffDays < LEAD_DAYS) return 'lead'; // 2日前ルールにより予約不可
+
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+  const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+
+  const overlapping = events.filter(ev => {
+    const evStart = new Date(ev.start.dateTime || ev.start.date);
+    const evEnd = new Date(ev.end.dateTime || ev.end.date);
+    return evStart < dayEnd && evEnd > dayStart;
   });
 
-  return {
-    type: 'flex',
-    altText: '予約日を選択',
-    contents: {
-      type: 'bubble',
-      header: buildHeader(menuName, 'ご希望日をお選びください'),
-      body: {
+  const blockedByCoating = overlapping.some(ev =>
+    ev.summary && (ev.summary.includes('COAT') || ev.summary.includes('SEALANT'))
+  );
+
+  if (blockedByCoating) return 'blocked';
+  if (overlapping.length === 0) return 'open';
+  return 'partial';
+}
+
+const STATUS_META = {
+  open: { label: '○', color: '#0B1F3A', bg: '#F7F5F0' },
+  partial: { label: '△', color: '#B5850C', bg: '#FBF1DC' },
+  blocked: { label: '✕', color: '#B0B0B0', bg: '#EDEDED' },
+  closed: { label: '休', color: '#B0B0B0', bg: '#EDEDED' },
+  lead: { label: '✕', color: '#B0B0B0', bg: '#EDEDED' },
+  past: { label: '－', color: '#DADADA', bg: '#F5F5F5' }
+};
+
+function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
+  const weeks = getMonthMatrix(year, monthIndex);
+  const monthLabel = `${year}年${monthIndex + 1}月`;
+
+  const weekdayHeader = {
+    type: 'box',
+    layout: 'horizontal',
+    contents: WEEKDAY_JA.map((w, idx) => ({
+      type: 'text',
+      text: w,
+      size: 'xxs',
+      align: 'center',
+      weight: 'bold',
+      color: (idx === 1 || idx === 2) ? BRAND.gray : BRAND.navy,
+      flex: 1
+    }))
+  };
+
+  const weekRows = weeks.map(week => ({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'xs',
+    contents: week.map(date => {
+      if (!date) {
+        return { type: 'box', layout: 'vertical', flex: 1, contents: [{ type: 'filler' }] };
+      }
+      const status = getDateStatus(date, today, events);
+      const meta = STATUS_META[status];
+      const clickable = status === 'open' || status === 'partial';
+
+      const cell = {
         type: 'box',
         layout: 'vertical',
-        paddingAll: 'lg',
+        flex: 1,
+        margin: 'xs',
+        paddingAll: 'xs',
+        cornerRadius: 'sm',
+        backgroundColor: meta.bg,
+        alignItems: 'center',
         contents: [
-          { type: 'text', text: '○ 空きあり　△ 一部予約あり　✕ 予約不可', size: 'xxs', color: BRAND.gray, wrap: true },
-          ...rows
+          {
+            type: 'text',
+            text: `${date.getDate()}`,
+            size: 'xs',
+            align: 'center',
+            weight: clickable ? 'bold' : 'regular',
+            color: clickable ? BRAND.navy : BRAND.lightGray
+          },
+          { type: 'text', text: meta.label, size: 'xxs', align: 'center', color: meta.color, margin: 'xs' }
         ]
-      },
-      footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
-    }
+      };
+      if (clickable) {
+        cell.action = { type: 'message', label: `${monthIndex + 1}/${date.getDate()}`, text: `date_${dateKey(date)}` };
+      }
+      return cell;
+    })
+  }));
+
+  return {
+    type: 'bubble',
+    header: buildHeader(menuName, monthLabel),
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'md',
+      contents: [
+        { type: 'text', text: '○空きあり　△一部予約あり　✕予約不可', size: 'xxs', color: BRAND.gray, wrap: true },
+        { type: 'separator', margin: 'sm' },
+        weekdayHeader,
+        ...weekRows
+      ]
+    },
+    footer: buildFooter('ご予約・キャンセルは2日前まで承ります。月・火は定休日です。')
   };
 }
 
@@ -575,19 +660,23 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
 
 async function replyDateSelection(replyToken, menuName) {
   const today = new Date();
-  const days = [];
-  for (let i = 1; i <= 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(d);
-  }
-  const rangeStart = new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate(), 0, 0, 0);
-  const rangeEnd = new Date(days[days.length - 1].getFullYear(), days[days.length - 1].getMonth(), days[days.length - 1].getDate(), 23, 59, 59);
 
+  const rangeStart = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
+  const rangeEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59);
   const events = await getEventsInRange(rangeStart, rangeEnd);
-  const statusMap = buildDayStatusMap(events, days);
 
-  await client.replyMessage(replyToken, buildDateSelectionFlex(menuName, days, statusMap));
+  const currentMonthBubble = buildMonthCalendarBubble(menuName, today.getFullYear(), today.getMonth(), events, today);
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today);
+
+  await client.replyMessage(replyToken, {
+    type: 'flex',
+    altText: '予約日を選択',
+    contents: {
+      type: 'carousel',
+      contents: [currentMonthBubble, nextMonthBubble]
+    }
+  });
 }
 
 // ==== メッセージハンドラ ====
