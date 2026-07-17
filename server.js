@@ -32,7 +32,6 @@ const serviceAccount = {
 
 const CALENDAR_ID = 'ba7fe62c075319e36884d0ec52c9f7defd7d2ce5828f8b3deeddا7890cb26a91@group.calendar.google.com';
 
-// Google Calendar認証
 const auth = new google.auth.GoogleAuth({
   credentials: serviceAccount,
   scopes: ['https://www.googleapis.com/auth/calendar']
@@ -40,7 +39,6 @@ const auth = new google.auth.GoogleAuth({
 
 const calendar = google.calendar({ version: 'v3', auth });
 
-// メニュー定義
 const MENUS = {
   '純水手洗い洗車': {
     type: 'wash',
@@ -77,40 +75,27 @@ const MENUS = {
   }
 };
 
-// ユーザーの予約状態管理
 const userStates = new Map();
 
-// ビジネスロジック関数
 function isBusinessOpen(date) {
   const day = date.getDay();
   const hour = date.getHours();
-  
-  // 月曜(1)と火曜(2)は定休日
   if (day === 1 || day === 2) return false;
-  
-  // 営業時間: 10:00～18:00
   if (hour < 10 || hour >= 18) return false;
-  
   return true;
 }
 
 function getNextAvailableSlot() {
   const now = new Date();
   let slot = new Date(now);
-  
-  // 15分後の枠から開始
   slot.setMinutes(Math.ceil(slot.getMinutes() / 15) * 15);
-  
-  // 営業時間内の枠を探す
   while (!isBusinessOpen(slot)) {
     slot.setHours(slot.getHours() + 1);
-    
     if (slot.getHours() >= 18) {
       slot.setHours(10);
       slot.setDate(slot.getDate() + 1);
     }
   }
-  
   return slot;
 }
 
@@ -123,11 +108,9 @@ async function isCoatingInProgress(startDate, endDate) {
       singleEvents: true,
       orderBy: 'startTime'
     });
-
-    const coatingEvent = events.data.items?.find(event => 
+    const coatingEvent = events.data.items?.find(event =>
       event.summary?.includes('COAT') || event.summary?.includes('SEALANT')
     );
-
     return !!coatingEvent;
   } catch (error) {
     console.error('Error checking coating progress:', error);
@@ -156,9 +139,7 @@ async function addEventToCalendar(userId, menuName, details) {
       description: eventDescription,
       start: { dateTime: startTime.toISOString(), timeZone: 'Asia/Tokyo' },
       end: { dateTime: endTime.toISOString(), timeZone: 'Asia/Tokyo' },
-      reminders: {
-        useDefault: true
-      }
+      reminders: { useDefault: true }
     };
 
     const result = await calendar.events.insert({
@@ -173,21 +154,17 @@ async function addEventToCalendar(userId, menuName, details) {
   }
 }
 
-// LINE メッセージハンドラ
 async function handleUserMessage(event) {
   const userId = event.source.userId;
   const userMessage = event.message.text?.toLowerCase();
   let userState = userStates.get(userId) || {};
 
   try {
-    // 初期状態 - メニュー選択
     if (!userState.step) {
       if (userMessage === '予約' || userMessage === 'メニュー') {
-        const buttons = Object.keys(MENUS).map((name, index) => ({
+        const buttons = Object.keys(MENUS).map((name) => ({
           type: 'button',
-          style: 'link',
-          label: name,
-          text: name
+          action: { type: 'message', label: name, text: name }
         }));
 
         await client.replyMessage(event.replyToken, {
@@ -199,26 +176,8 @@ async function handleUserMessage(event) {
               type: 'box',
               layout: 'vertical',
               contents: [
-                {
-                  type: 'text',
-                  text: '洗車メニューを選択してください',
-                  weight: 'bold',
-                  size: 'lg'
-                },
-                {
-                  type: 'box',
-                  layout: 'vertical',
-                  margin: 'md',
-                  spacing: 'sm',
-                  contents: buttons.map(btn => ({
-                    type: 'button',
-                    action: {
-                      type: 'message',
-                      label: btn.label,
-                      text: btn.label
-                    }
-                  }))
-                }
+                { type: 'text', text: '洗車メニューを選択してください', weight: 'bold', size: 'lg' },
+                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: buttons }
               ]
             }
           }
@@ -227,7 +186,6 @@ async function handleUserMessage(event) {
       }
     }
 
-    // ステップ1 - メニュー選択後、サイズ選択
     if (userMessage && Object.keys(MENUS).includes(userMessage)) {
       userState.selectedMenu = userMessage;
       const menu = MENUS[userMessage];
@@ -236,11 +194,7 @@ async function handleUserMessage(event) {
         userState.step = 'select_size';
         const sizeButtons = Object.keys(menu.prices).map(size => ({
           type: 'button',
-          action: {
-            type: 'message',
-            label: `${size} - ¥${menu.prices[size].toLocaleString()}`,
-            text: `size_${size}`
-          }
+          action: { type: 'message', label: `${size} - ¥${menu.prices[size].toLocaleString()}`, text: `size_${size}` }
         }));
 
         await client.replyMessage(event.replyToken, {
@@ -252,40 +206,18 @@ async function handleUserMessage(event) {
               type: 'box',
               layout: 'vertical',
               contents: [
-                {
-                  type: 'text',
-                  text: `${userMessage}`,
-                  weight: 'bold',
-                  size: 'lg'
-                },
-                {
-                  type: 'text',
-                  text: 'サイズを選択してください',
-                  size: 'sm',
-                  color: '#aaaaaa',
-                  margin: 'sm'
-                },
-                {
-                  type: 'box',
-                  layout: 'vertical',
-                  margin: 'md',
-                  spacing: 'sm',
-                  contents: sizeButtons
-                }
+                { type: 'text', text: `${userMessage}`, weight: 'bold', size: 'lg' },
+                { type: 'text', text: 'サイズを選択してください', size: 'sm', color: '#aaaaaa', margin: 'sm' },
+                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: sizeButtons }
               ]
             }
           }
         });
       } else {
-        // コーティング
         userState.step = 'select_coating_pattern';
         const patternButtons = menu.patterns.map(pattern => ({
           type: 'button',
-          action: {
-            type: 'message',
-            label: pattern,
-            text: `pattern_${pattern}`
-          }
+          action: { type: 'message', label: pattern, text: `pattern_${pattern}` }
         }));
 
         await client.replyMessage(event.replyToken, {
@@ -297,32 +229,10 @@ async function handleUserMessage(event) {
               type: 'box',
               layout: 'vertical',
               contents: [
-                {
-                  type: 'text',
-                  text: `${userMessage}`,
-                  weight: 'bold',
-                  size: 'lg'
-                },
-                {
-                  type: 'text',
-                  text: `価格: ¥${menu.basePrice.toLocaleString()}`,
-                  size: 'sm',
-                  margin: 'sm'
-                },
-                {
-                  type: 'text',
-                  text: '施工パターンを選択してください',
-                  size: 'sm',
-                  color: '#aaaaaa',
-                  margin: 'sm'
-                },
-                {
-                  type: 'box',
-                  layout: 'vertical',
-                  margin: 'md',
-                  spacing: 'sm',
-                  contents: patternButtons
-                }
+                { type: 'text', text: `${userMessage}`, weight: 'bold', size: 'lg' },
+                { type: 'text', text: `価格: ¥${menu.basePrice.toLocaleString()}`, size: 'sm', margin: 'sm' },
+                { type: 'text', text: '施工パターンを選択してください', size: 'sm', color: '#aaaaaa', margin: 'sm' },
+                { type: 'box', layout: 'vertical', margin: 'md', spacing: 'sm', contents: patternButtons }
               ]
             }
           }
@@ -333,7 +243,6 @@ async function handleUserMessage(event) {
       return;
     }
 
-    // ステップ2 - サイズ選択
     if (userState.step === 'select_size' && userMessage?.startsWith('size_')) {
       const size = userMessage.replace('size_', '').toUpperCase();
       userState.size = size;
@@ -352,7 +261,6 @@ async function handleUserMessage(event) {
       return;
     }
 
-    // ステップ3 - コーティングパターン選択
     if (userState.step === 'select_coating_pattern' && userMessage?.startsWith('pattern_')) {
       const pattern = userMessage.replace('pattern_', '');
       userState.pattern = pattern;
@@ -371,9 +279,7 @@ async function handleUserMessage(event) {
       return;
     }
 
-    // ステップ4 - 日時確認と予約確定
     if (userState.step === 'select_datetime' && userMessage) {
-      // 日時パース
       const dateTimeRegex = /(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
       const match = userMessage.match(dateTimeRegex);
 
@@ -388,7 +294,6 @@ async function handleUserMessage(event) {
       const [, year, month, day, hour, minute] = match;
       const bookingDateTime = new Date(year, parseInt(month) - 1, day, hour, minute);
 
-      // 営業時間チェック
       if (!isBusinessOpen(bookingDateTime)) {
         await client.replyMessage(event.replyToken, {
           type: 'text',
@@ -397,7 +302,6 @@ async function handleUserMessage(event) {
         return;
       }
 
-      // コーティング期間チェック
       const menu = MENUS[userState.selectedMenu];
       if (menu.type === 'coating' && await isCoatingInProgress(bookingDateTime, bookingDateTime)) {
         await client.replyMessage(event.replyToken, {
@@ -407,7 +311,6 @@ async function handleUserMessage(event) {
         return;
       }
 
-      // Google Calendarに登録
       const bookingDetails = {
         dateTime: bookingDateTime,
         size: userState.size || 'N/A',
@@ -428,7 +331,6 @@ async function handleUserMessage(event) {
         text: confirmMessage
       });
 
-      // ユーザー状態をリセット
       userStates.delete(userId);
     }
   } catch (error) {
@@ -440,48 +342,47 @@ async function handleUserMessage(event) {
   }
 }
 
-// Webhook署名検証
-function verifySignature(body, signature) {
+function verifySignature(rawBody, signature) {
   const hmac = crypto.createHmac('sha256', lineConfig.channelSecret);
-  hmac.update(body, 'utf8');
+  hmac.update(rawBody);
   const computed = hmac.digest('base64');
   return signature === computed;
 }
 
-// Expressミドルウェア
-app.use(express.json());
+// 重要: rawBodyを保持するため express.json() の verify オプションを使用
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
-// Webhook受け取り
 app.post('/webhook', async (req, res) => {
   const signature = req.get('x-line-signature');
-  const body = JSON.stringify(req.body);
 
-  if (!verifySignature(body, signature)) {
+  if (!signature || !verifySignature(req.rawBody, signature)) {
+    console.error('署名検証に失敗しました');
     return res.status(403).json({ error: 'Invalid signature' });
   }
 
   try {
     const events = req.body.events;
 
+    res.status(200).json({ success: true });
+
     await Promise.all(events.map(async (event) => {
       if (event.type === 'message' && event.message.type === 'text') {
         await handleUserMessage(event);
       }
     }));
-
-    res.json({ success: true });
   } catch (error) {
     console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ヘルスチェック
 app.get('/', (req, res) => {
   res.json({ status: 'Running', timestamp: new Date().toISOString() });
 });
 
-// サーバー起動
 app.listen(PORT, () => {
   console.log(`🚀 LINE洗車予約ボット起動`);
   console.log(`📍 Webhook: https://web-production-7fc6d.up.railway.app/webhook`);
