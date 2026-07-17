@@ -53,18 +53,18 @@ const BRAND = {
 const MENUS = {
   '純水手洗い洗車': {
     type: 'wash',
-    prices: { S: 5500, M: 6600, L: 6600, XL: 7700 },
-    duration: { S: 120, M: 150, L: 150, XL: 180 }
+    prices: { SS: 5500, S: 5500, M: 6600, L: 6600, XL: 7700, XXL: 7700 },
+    duration: { SS: 120, S: 120, M: 150, L: 150, XL: 180, XXL: 180 }
   },
   '徹底洗車': {
     type: 'wash',
-    prices: { S: 44000, M: 55000, L: 55000, XL: 66000 },
-    duration: { S: 900, M: 900, L: 900, XL: 900 }
+    prices: { SS: 44000, S: 44000, M: 55000, L: 55000, XL: 66000, XXL: 66000 },
+    duration: { SS: 900, S: 900, M: 900, L: 900, XL: 900, XXL: 900 }
   },
   '徹底洗車ライト': {
     type: 'wash',
-    prices: { S: 27500, M: 33000, L: 33000, XL: 38500 },
-    duration: { S: 420, M: 420, L: 420, XL: 420 }
+    prices: { SS: 27500, S: 27500, M: 33000, L: 33000, XL: 38500, XXL: 38500 },
+    duration: { SS: 420, S: 420, M: 420, L: 420, XL: 420, XXL: 420 }
   },
   'ISM COAT': {
     type: 'coating',
@@ -241,7 +241,14 @@ function buildMenuFlex() {
 }
 
 function buildSizeFlex(menuName, menu) {
-  const sizeLabels = { S: 'コンパクトカー', M: 'セダン・ミニバン', L: 'ミニバン・SUV', XL: '大型SUV・ミニバン' };
+  const sizeLabels = {
+    SS: '軽自動車',
+    S: 'コンパクトカー',
+    M: 'セダン・ミニバン',
+    L: 'ミニバン・SUV',
+    XL: '大型SUV・ミニバン',
+    XXL: '大型ミニバン・特大車'
+  };
   const sizeButtons = Object.keys(menu.prices).map(size => ({
     type: 'box',
     layout: 'horizontal',
