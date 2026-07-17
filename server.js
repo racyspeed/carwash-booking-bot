@@ -129,20 +129,29 @@ async function isCoatingInProgress(startDate) {
   }
 }
 
+function parsePatternDays(pattern) {
+  const match = pattern && pattern.match(/(\d+)日/);
+  return match ? parseInt(match[1], 10) : 3;
+}
+
 async function addEventToCalendar(userId, menuName, details) {
   try {
     const menu = MENUS[menuName];
     const startTime = new Date(details.dateTime);
-    const durationMinutes = menu.type === 'wash' ? menu.duration[details.size] : menu.duration;
-    const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
+    let endTime;
 
     let eventTitle = menuName;
     let eventDescription = `顧客ID: ${userId}\n`;
 
     if (menu.type === 'wash') {
+      const durationMinutes = menu.duration[details.size];
+      endTime = new Date(startTime.getTime() + durationMinutes * 60000);
       eventTitle += ` (${details.size})`;
       eventDescription += `サイズ: ${details.size}\n価格: ¥${menu.prices[details.size].toLocaleString()}`;
     } else {
+      // コーティングは施工期間全体（3日/5日/7日）をブロックする
+      const patternDays = parsePatternDays(details.pattern);
+      endTime = new Date(startTime.getTime() + patternDays * 24 * 60 * 60 * 1000);
       eventDescription += `パターン: ${details.pattern}\n価格: ¥${menu.basePrice.toLocaleString()}`;
     }
 
@@ -164,6 +173,74 @@ async function addEventToCalendar(userId, menuName, details) {
     console.error('Error adding event to calendar:', error);
     throw error;
   }
+}
+
+async function getEventsInRange(startDate, endDate) {
+  try {
+    const res = await calendar.events.list({
+      calendarId: CALENDAR_ID,
+      timeMin: startDate.toISOString(),
+      timeMax: endDate.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 250
+    });
+    return res.data.items || [];
+  } catch (error) {
+    console.error('Error fetching events in range:', error);
+    return [];
+  }
+}
+
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function buildDayStatusMap(events, days) {
+  const statusMap = {};
+  for (const day of days) {
+    const key = dateKey(day);
+    const dow = day.getDay();
+
+    if (dow === 1 || dow === 2) {
+      statusMap[key] = { status: 'closed' };
+      continue;
+    }
+
+    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0);
+    const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
+
+    const overlapping = events.filter(ev => {
+      const evStart = new Date(ev.start.dateTime || ev.start.date);
+      const evEnd = new Date(ev.end.dateTime || ev.end.date);
+      return evStart < dayEnd && evEnd > dayStart;
+    });
+
+    const blockedByCoating = overlapping.some(ev =>
+      ev.summary && (ev.summary.includes('COAT') || ev.summary.includes('SEALANT'))
+    );
+
+    if (blockedByCoating) {
+      statusMap[key] = { status: 'blocked' };
+    } else if (overlapping.length === 0) {
+      statusMap[key] = { status: 'open' };
+    } else {
+      statusMap[key] = { status: 'partial' };
+    }
+  }
+  return statusMap;
+}
+
+async function hasConflict(startTime, endTime) {
+  const events = await getEventsInRange(startTime, endTime);
+  return events.some(ev => {
+    const evStart = new Date(ev.start.dateTime || ev.start.date);
+    const evEnd = new Date(ev.end.dateTime || ev.end.date);
+    return evStart < endTime && evEnd > startTime;
+  });
 }
 
 // ==== Flexメッセージ生成（デザイン改善版） ====
@@ -388,6 +465,131 @@ function buildPatternFlex(menuName, menu) {
   };
 }
 
+const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+function buildDateSelectionFlex(menuName, days, statusMap) {
+  const statusIcon = { open: '○', partial: '△', blocked: '✕', closed: '✕' };
+  const statusColor = { open: BRAND.navy, partial: '#B5850C', blocked: BRAND.lightGray, closed: BRAND.lightGray };
+
+  const rows = days.map(day => {
+    const key = dateKey(day);
+    const info = statusMap[key];
+    const clickable = info.status === 'open' || info.status === 'partial';
+    const label = `${day.getMonth() + 1}/${day.getDate()}（${WEEKDAY_JA[day.getDay()]}）`;
+
+    const row = {
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      paddingAll: 'sm',
+      backgroundColor: clickable ? BRAND.cream : '#EDEDED',
+      cornerRadius: 'md',
+      contents: [
+        { type: 'text', text: label, size: 'sm', color: clickable ? BRAND.navy : BRAND.lightGray, flex: 3, gravity: 'center' },
+        { type: 'text', text: statusIcon[info.status], size: 'md', weight: 'bold', color: statusColor[info.status], flex: 1, align: 'end', gravity: 'center' }
+      ]
+    };
+    if (clickable) {
+      row.action = { type: 'message', label: label, text: `date_${key}` };
+    }
+    return row;
+  });
+
+  return {
+    type: 'flex',
+    altText: '予約日を選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(menuName, 'ご希望日をお選びください'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '○ 空きあり　△ 一部予約あり　✕ 予約不可', size: 'xxs', color: BRAND.gray, wrap: true },
+          ...rows
+        ]
+      },
+      footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
+    }
+  };
+}
+
+function generateHourlySlots() {
+  const slots = [];
+  for (let h = 10; h <= 17; h++) {
+    slots.push(`${String(h).padStart(2, '0')}:00`);
+  }
+  return slots;
+}
+
+function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
+  const [y, m, d] = dateKeyStr.split('-').map(Number);
+  const slots = generateHourlySlots();
+
+  const buttons = slots.map(time => {
+    const [hh, mm] = time.split(':').map(Number);
+    const slotStart = new Date(y, m - 1, d, hh, mm);
+    const slotEnd = new Date(slotStart.getTime() + 60 * 60000);
+
+    const taken = dayEvents.some(ev => {
+      const evStart = new Date(ev.start.dateTime || ev.start.date);
+      const evEnd = new Date(ev.end.dateTime || ev.end.date);
+      return evStart < slotEnd && evEnd > slotStart;
+    });
+
+    const row = {
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      paddingAll: 'sm',
+      backgroundColor: taken ? '#EDEDED' : BRAND.cream,
+      cornerRadius: 'md',
+      contents: [
+        { type: 'text', text: time, size: 'sm', color: taken ? BRAND.lightGray : BRAND.navy, flex: 3, gravity: 'center' },
+        { type: 'text', text: taken ? '✕' : '○', size: 'md', weight: 'bold', color: taken ? BRAND.lightGray : BRAND.navy, flex: 1, align: 'end', gravity: 'center' }
+      ]
+    };
+    if (!taken) {
+      row.action = { type: 'message', label: time, text: `time_${time}` };
+    }
+    return row;
+  });
+
+  return {
+    type: 'flex',
+    altText: '時間を選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(menuName, `${m}/${d} のご希望時間`),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: buttons
+      },
+      footer: buildFooter('ご来店予定時間の目安です')
+    }
+  };
+}
+
+async function replyDateSelection(replyToken, menuName) {
+  const today = new Date();
+  const days = [];
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  const rangeStart = new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate(), 0, 0, 0);
+  const rangeEnd = new Date(days[days.length - 1].getFullYear(), days[days.length - 1].getMonth(), days[days.length - 1].getDate(), 23, 59, 59);
+
+  const events = await getEventsInRange(rangeStart, rangeEnd);
+  const statusMap = buildDayStatusMap(events, days);
+
+  await client.replyMessage(replyToken, buildDateSelectionFlex(menuName, days, statusMap));
+}
+
 // ==== メッセージハンドラ ====
 
 async function handleUserMessage(event) {
@@ -432,68 +634,64 @@ async function handleUserMessage(event) {
     if (userState.step === 'select_size' && userMessage?.startsWith('size_')) {
       const size = userMessage.replace('size_', '').toUpperCase();
       userState.size = size;
-      userState.step = 'select_datetime';
-
-      const nextSlot = getNextAvailableSlot();
-      const dateStr = nextSlot.toLocaleDateString('ja-JP');
-      const timeStr = nextSlot.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-
-      await client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `サイズ: ${size}を選択しました。\n次のご都合の良い日時をお知らせください。\n(例: 2024年7月20日 14:30)\n\n次の利用可能枠: ${dateStr} ${timeStr}`
-      });
-
+      userState.step = 'select_date';
       userStates.set(userId, userState);
+
+      await replyDateSelection(event.replyToken, userState.selectedMenu);
       return;
     }
 
     if (userState.step === 'select_coating_pattern' && userMessage?.startsWith('pattern_')) {
       const pattern = userMessage.replace('pattern_', '');
       userState.pattern = pattern;
-      userState.step = 'select_datetime';
-
-      const nextSlot = getNextAvailableSlot();
-      const dateStr = nextSlot.toLocaleDateString('ja-JP');
-      const timeStr = nextSlot.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-
-      await client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `パターン: ${pattern}を選択しました。\n次のご都合の良い日時をお知らせください。\n(例: 2024年7月20日 09:00)\n\n次の利用可能枠: ${dateStr} ${timeStr}`
-      });
-
+      userState.step = 'select_date';
       userStates.set(userId, userState);
+
+      await replyDateSelection(event.replyToken, userState.selectedMenu);
       return;
     }
 
-    if (userState.step === 'select_datetime' && userMessage) {
-      const dateTimeRegex = /(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
-      const match = userMessage.match(dateTimeRegex);
+    if (userState.step === 'select_date' && userMessage?.startsWith('date_')) {
+      const dateKeyStr = userMessage.replace('date_', '');
+      userState.selectedDate = dateKeyStr;
+      userState.step = 'select_time';
+      userStates.set(userId, userState);
 
-      if (!match) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '日時の形式が正しくありません。\n例: 2024年7月20日 14:30'
-        });
-        return;
-      }
+      const [y, m, d] = dateKeyStr.split('-').map(Number);
+      const dayStart = new Date(y, m - 1, d, 0, 0, 0);
+      const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
+      const dayEvents = await getEventsInRange(dayStart, dayEnd);
 
-      const [, year, month, day, hour, minute] = match;
-      const bookingDateTime = new Date(year, parseInt(month) - 1, day, hour, minute);
+      await client.replyMessage(event.replyToken, buildTimeSelectionFlex(userState.selectedMenu, dateKeyStr, dayEvents));
+      return;
+    }
+
+    if (userState.step === 'select_time' && userMessage?.startsWith('time_')) {
+      const time = userMessage.replace('time_', '');
+      const [hour, minute] = time.split(':').map(Number);
+      const [year, month, day] = userState.selectedDate.split('-').map(Number);
+      const bookingDateTime = new Date(year, month - 1, day, hour, minute);
 
       if (!isBusinessOpen(bookingDateTime)) {
         await client.replyMessage(event.replyToken, {
           type: 'text',
-          text: '申し訳ございません。ご指定の日時は営業時間外です。\n営業時間: 10:00～18:00\n定休日: 月曜・火曜\n別の日時でお願いいたします。'
+          text: '申し訳ございません。ご指定の日時は営業時間外です。\n営業時間: 10:00～18:00\n定休日: 月曜・火曜\nお手数ですが「予約」と送信してやり直してください。'
         });
+        userStates.delete(userId);
         return;
       }
 
       const menu = MENUS[userState.selectedMenu];
-      if (menu.type === 'coating' && await isCoatingInProgress(bookingDateTime)) {
+      const durationMinutes = menu.type === 'wash' ? menu.duration[userState.size] : 60;
+      const provisionalEnd = new Date(bookingDateTime.getTime() + durationMinutes * 60000);
+
+      const conflict = await hasConflict(bookingDateTime, provisionalEnd);
+      if (conflict) {
         await client.replyMessage(event.replyToken, {
           type: 'text',
-          text: 'ご指定の日時はコーティング作業中です。別の日時でお願いいたします。'
+          text: '申し訳ございません。ちょうど今、その時間は埋まってしまいました。\nお手数ですが「予約」と送信してやり直してください。'
         });
+        userStates.delete(userId);
         return;
       }
 
@@ -507,8 +705,8 @@ async function handleUserMessage(event) {
 
       let confirmMessage = `✅ 予約確定\n\n`;
       confirmMessage += `メニュー: ${userState.selectedMenu}\n`;
-      confirmMessage += userState.size ? `サイズ: ${userState.size}\n` : '';
-      confirmMessage += userState.pattern ? `パターン: ${userState.pattern}\n` : '';
+      confirmMessage += userState.size !== 'N/A' && userState.size ? `サイズ: ${userState.size}\n` : '';
+      confirmMessage += userState.pattern !== 'N/A' && userState.pattern ? `パターン: ${userState.pattern}\n` : '';
       confirmMessage += `日時: ${bookingDateTime.toLocaleString('ja-JP')}\n`;
       confirmMessage += `\nご予約ありがとうございます！`;
 
@@ -518,6 +716,7 @@ async function handleUserMessage(event) {
       });
 
       userStates.delete(userId);
+      return;
     }
   } catch (error) {
     console.error('Error handling message:', error);
