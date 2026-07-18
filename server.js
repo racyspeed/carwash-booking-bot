@@ -76,6 +76,26 @@ const MENUS = {
       '研磨なし': {
         label: '研磨なし（3〜5日程度）',
         days: 5,
+        priceBySize: { SS: 66000, S: 77000, M: 88000, L: 99000, XL: 110000, XXL: 121000 }
+      },
+      '研磨1工程': {
+        label: '研磨1工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 99000, S: 110000, M: 121000, L: 132000, XL: 143000, XXL: 154000 }
+      },
+      '研磨2工程': {
+        label: '研磨2工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 132000, S: 143000, M: 154000, L: 165000, XL: 176000, XXL: 187000 }
+      }
+    }
+  },
+  'カーボンナノチューブ＋トップコート': {
+    type: 'coating',
+    patterns: {
+      '研磨なし': {
+        label: '研磨なし（3〜5日程度）',
+        days: 5,
         priceBySize: { SS: 77000, S: 88000, M: 99000, L: 110000, XL: 121000, XXL: 132000 }
       },
       '研磨1工程': {
@@ -87,6 +107,26 @@ const MENUS = {
         label: '研磨2工程（5〜7日程度）',
         days: 7,
         priceBySize: { SS: 143000, S: 154000, M: 165000, L: 176000, XL: 187000, XXL: 198000 }
+      }
+    }
+  },
+  'カーボンナノチューブ＋トップコート＋ナノ金美容液': {
+    type: 'coating',
+    patterns: {
+      '研磨なし': {
+        label: '研磨なし（3〜5日程度）',
+        days: 5,
+        priceBySize: { SS: 99000, S: 110000, M: 121000, L: 132000, XL: 143000, XXL: 154000 }
+      },
+      '研磨1工程': {
+        label: '研磨1工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 132000, S: 143000, M: 154000, L: 165000, XL: 176000, XXL: 187000 }
+      },
+      '研磨2工程': {
+        label: '研磨2工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 165000, S: 176000, M: 187000, L: 198000, XL: 209000, XXL: 220000 }
       }
     }
   }
@@ -390,7 +430,7 @@ function buildCategoryFlex() {
             action: { type: 'message', label: 'コーティング', text: 'category_coating' },
             contents: [
               { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-              { type: 'text', text: 'カーボンナノチューブコーティング', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
+              { type: 'text', text: 'カーボンナノチューブ／＋トップコート／＋ナノ金美容液', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
             ]
           }
         ]
