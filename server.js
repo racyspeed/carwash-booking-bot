@@ -72,7 +72,7 @@ const MENUS = {
     prices: { SS: 27500, S: 27500, M: 33000, L: 33000, XL: 38500, XXL: 38500 },
     duration: { SS: 420, S: 420, M: 420, L: 420, XL: 420, XXL: 420 }
   },
-  'カーボンナノチューブ': {
+  'N°999"F"': {
     type: 'coating',
     patterns: {
       '研磨なし': {
@@ -92,7 +92,7 @@ const MENUS = {
       }
     }
   },
-  'カーボンナノチューブ＋トップコート': {
+  'N°999"F" + N°320"F"': {
     type: 'coating',
     patterns: {
       '研磨なし': {
@@ -112,7 +112,7 @@ const MENUS = {
       }
     }
   },
-  'カーボンナノチューブ＋トップコート＋ナノ金美容液': {
+  'N°999"F" + N°320"F" + ナノ金': {
     type: 'coating',
     patterns: {
       '研磨なし': {
@@ -451,7 +451,7 @@ function buildCategoryFlex() {
             action: { type: 'message', label: 'コーティング', text: 'category_coating' },
             contents: [
               { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-              { type: 'text', text: 'カーボンナノチューブ／＋トップコート／＋ナノ金美容液', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
+              { type: 'text', text: 'N°999"F"／N°320"F"／ナノ金', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
             ]
           }
         ]
