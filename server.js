@@ -43,8 +43,12 @@ const calendar = google.calendar({ version: 'v3', auth });
 // ブランドカラー
 const BRAND = {
   navy: '#0B1F3A',
+  navyBg: '#EEF2F8',
   gold: '#C9A227',
   goldDark: '#8A6D1D',
+  goldBg: '#FBF3E0',
+  teal: '#146B64',
+  tealBg: '#E7F3F1',
   cream: '#F7F5F0',
   gray: '#8C8C8C',
   lightGray: '#B0B0B0'
@@ -313,11 +317,12 @@ async function hasConflict(startTime, endTime) {
 
 // ==== Flexメッセージ生成（デザイン改善版） ====
 
-function buildHeader(subtitle, title) {
+function buildHeader(subtitle, title, accentBg) {
+  const bg = accentBg || BRAND.navy;
   return {
     type: 'box',
     layout: 'vertical',
-    backgroundColor: BRAND.navy,
+    backgroundColor: bg,
     paddingAll: 'lg',
     contents: [
       { type: 'text', text: "RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
@@ -338,13 +343,13 @@ function buildFooter(text) {
   };
 }
 
-function buildSelectableCard(label, subtitle, actionText, accentColor) {
+function buildSelectableCard(label, subtitle, actionText, accentColor, bgColor) {
   return {
     type: 'box',
     layout: 'vertical',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: bgColor || BRAND.cream,
     cornerRadius: 'md',
     action: { type: 'message', label: label, text: actionText },
     contents: [
@@ -405,13 +410,13 @@ function buildWashMenuFlex() {
     altText: '洗車メニュー選択',
     contents: {
       type: 'bubble',
-      header: buildHeader('ご希望の洗車コースをお選びください', '洗車メニュー'),
+      header: buildHeader('ご希望の洗車コースをお選びください', '洗車メニュー', BRAND.navy),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: washNames.map(name =>
-          buildSelectableCard(name, `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜 XXL ¥${MENUS[name].prices.XXL.toLocaleString()}`, name, BRAND.navy)
+          buildSelectableCard(name, `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜 XXL ¥${MENUS[name].prices.XXL.toLocaleString()}`, name, BRAND.navy, BRAND.navyBg)
         )
       },
       footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
@@ -426,13 +431,13 @@ function buildCoatingMenuFlex() {
     altText: 'コーティングメニュー選択',
     contents: {
       type: 'bubble',
-      header: buildHeader('ご希望のコーティングをお選びください', 'コーティングメニュー'),
+      header: buildHeader('ご希望のコーティングをお選びください', 'コーティングメニュー', BRAND.goldDark),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: coatingNames.map(name =>
-          buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark)
+          buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark, BRAND.goldBg)
         )
       },
       footer: buildFooter('コーティング期間中は他のご予約をお受けできません')
@@ -454,7 +459,7 @@ function buildSizeFlex(menuName, menu) {
     layout: 'horizontal',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.navyBg,
     cornerRadius: 'md',
     action: { type: 'message', label: size, text: `size_${size}` },
     contents: [
@@ -472,7 +477,7 @@ function buildSizeFlex(menuName, menu) {
         text: `¥${menu.prices[size].toLocaleString()}`,
         weight: 'bold',
         size: 'sm',
-        color: BRAND.goldDark,
+        color: BRAND.navy,
         align: 'end',
         gravity: 'center'
       }
@@ -484,7 +489,7 @@ function buildSizeFlex(menuName, menu) {
     altText: 'サイズ選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(null, menuName),
+      header: buildHeader(null, menuName, BRAND.navy),
       body: {
         type: 'box',
         layout: 'vertical',
@@ -513,11 +518,11 @@ function buildCoatingSizeFlex(menuName) {
     layout: 'horizontal',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.goldBg,
     cornerRadius: 'md',
     action: { type: 'message', label: size, text: `size_${size}` },
     contents: [
-      { type: 'text', text: `サイズ ${size}`, weight: 'bold', size: 'sm', color: BRAND.navy, flex: 2 },
+      { type: 'text', text: `サイズ ${size}`, weight: 'bold', size: 'sm', color: BRAND.goldDark, flex: 2 },
       { type: 'text', text: sizeLabels[size], size: 'xxs', color: BRAND.gray, flex: 3, gravity: 'center' }
     ]
   }));
@@ -527,13 +532,13 @@ function buildCoatingSizeFlex(menuName) {
     altText: 'サイズ選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(null, menuName),
+      header: buildHeader(null, menuName, BRAND.goldDark),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.goldDark },
           ...sizeButtons
         ]
       },
@@ -548,7 +553,7 @@ function buildPatternFlex(menuName, menu) {
     layout: 'vertical',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.goldBg,
     cornerRadius: 'md',
     action: { type: 'message', label: pattern, text: `pattern_${pattern}` },
     contents: [
@@ -561,13 +566,13 @@ function buildPatternFlex(menuName, menu) {
     altText: 'コーティングパターン選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(`¥${menu.basePrice.toLocaleString()}〜`, menuName),
+      header: buildHeader(`¥${menu.basePrice.toLocaleString()}〜`, menuName, BRAND.goldDark),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '施工パターンをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          { type: 'text', text: '施工パターンをお選びください', weight: 'bold', size: 'md', color: BRAND.goldDark },
           ...patternButtons
         ]
       },
@@ -815,11 +820,11 @@ function buildOptionMenuFlex(userState) {
     layout: 'vertical',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.tealBg,
     cornerRadius: 'md',
     action: { type: 'message', label: name, text: `option_${key}` },
     contents: [
-      { type: 'text', text: name, weight: 'bold', size: 'md', color: BRAND.navy, wrap: true },
+      { type: 'text', text: name, weight: 'bold', size: 'md', color: BRAND.teal, wrap: true },
       { type: 'text', text: subtitle, size: 'xs', color: BRAND.gray, margin: 'xs', wrap: true }
     ]
   });
@@ -836,7 +841,7 @@ function buildOptionMenuFlex(userState) {
   const selectedSummary = selected.length > 0
     ? [
         { type: 'separator', margin: 'lg' },
-        { type: 'text', text: '選択中のオプション', weight: 'bold', size: 'sm', color: BRAND.navy, margin: 'lg' },
+        { type: 'text', text: '選択中のオプション', weight: 'bold', size: 'sm', color: BRAND.teal, margin: 'lg' },
         ...selected.map(o => ({
           type: 'text',
           text: `・${o.label}　${o.price === null ? '応相談' : formatYen(o.price)}`,
@@ -853,7 +858,7 @@ function buildOptionMenuFlex(userState) {
     altText: 'オプション選択',
     contents: {
       type: 'bubble',
-      header: buildHeader('必要なオプションをお選びください（複数選択可）', 'オプション'),
+      header: buildHeader('必要なオプションをお選びください（複数選択可）', 'オプション', BRAND.teal),
       body: {
         type: 'box',
         layout: 'vertical',
@@ -869,7 +874,7 @@ function buildOptionMenuFlex(userState) {
             type: 'box',
             layout: 'vertical',
             paddingAll: 'md',
-            backgroundColor: BRAND.navy,
+            backgroundColor: BRAND.teal,
             cornerRadius: 'md',
             action: { type: 'message', label: '次へ進む', text: 'option_done' },
             contents: [
@@ -888,12 +893,12 @@ function buildWindowVariantFlex(bucket) {
     layout: 'horizontal',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.tealBg,
     cornerRadius: 'md',
     action: { type: 'message', label: v.label, text: `window_${key}` },
     contents: [
-      { type: 'text', text: v.label, size: 'sm', color: BRAND.navy, flex: 3, wrap: true, gravity: 'center' },
-      { type: 'text', text: formatYen(v.price[bucket]), size: 'sm', weight: 'bold', color: BRAND.goldDark, flex: 2, align: 'end', gravity: 'center' }
+      { type: 'text', text: v.label, size: 'sm', color: BRAND.teal, flex: 3, wrap: true, gravity: 'center' },
+      { type: 'text', text: formatYen(v.price[bucket]), size: 'sm', weight: 'bold', color: BRAND.teal, flex: 2, align: 'end', gravity: 'center' }
     ]
   }));
 
@@ -902,13 +907,13 @@ function buildWindowVariantFlex(bucket) {
     altText: '窓ガラスコーティングの範囲を選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(null, '窓ガラスコーティング'),
+      header: buildHeader(null, '窓ガラスコーティング', BRAND.teal),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '施工範囲をお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          { type: 'text', text: '施工範囲をお選びください', weight: 'bold', size: 'md', color: BRAND.teal },
           ...buttons
         ]
       }
@@ -925,11 +930,11 @@ function buildWheelCountFlex() {
     layout: 'vertical',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.tealBg,
     cornerRadius: 'md',
     action: { type: 'message', label: o.label, text: `wheel_${o.key}` },
     contents: [
-      { type: 'text', text: o.label, weight: 'bold', size: 'md', color: BRAND.navy }
+      { type: 'text', text: o.label, weight: 'bold', size: 'md', color: BRAND.teal }
     ]
   }));
 
@@ -938,13 +943,13 @@ function buildWheelCountFlex() {
     altText: 'ホイールコーティングの本数を選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(null, 'ホイールコーティング'),
+      header: buildHeader(null, 'ホイールコーティング', BRAND.teal),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '施工する本数をお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          { type: 'text', text: '施工する本数をお選びください', weight: 'bold', size: 'md', color: BRAND.teal },
           ...buttons
         ]
       }
@@ -959,12 +964,12 @@ function buildWheelInchFlex(count) {
     layout: 'horizontal',
     margin: 'md',
     paddingAll: 'md',
-    backgroundColor: BRAND.cream,
+    backgroundColor: BRAND.tealBg,
     cornerRadius: 'md',
     action: { type: 'message', label: OPTIONS.wheel.inchLabel[inchKey], text: `wheel_inch_${count}_${inchKey}` },
     contents: [
-      { type: 'text', text: OPTIONS.wheel.inchLabel[inchKey], size: 'sm', color: BRAND.navy, flex: 3, gravity: 'center' },
-      { type: 'text', text: formatYen(price), size: 'sm', weight: 'bold', color: BRAND.goldDark, flex: 2, align: 'end', gravity: 'center' }
+      { type: 'text', text: OPTIONS.wheel.inchLabel[inchKey], size: 'sm', color: BRAND.teal, flex: 3, gravity: 'center' },
+      { type: 'text', text: formatYen(price), size: 'sm', weight: 'bold', color: BRAND.teal, flex: 2, align: 'end', gravity: 'center' }
     ]
   }));
 
@@ -973,13 +978,13 @@ function buildWheelInchFlex(count) {
     altText: 'ホイールサイズを選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(`${count}本`, 'ホイールコーティング'),
+      header: buildHeader(`${count}本`, 'ホイールコーティング', BRAND.teal),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: 'ホイールサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          { type: 'text', text: 'ホイールサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.teal },
           ...buttons
         ]
       }
