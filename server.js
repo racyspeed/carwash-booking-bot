@@ -70,23 +70,25 @@ const MENUS = {
     prices: { SS: 27500, S: 27500, M: 33000, L: 33000, XL: 38500, XXL: 38500 },
     duration: { SS: 420, S: 420, M: 420, L: 420, XL: 420, XXL: 420 }
   },
-  'ISM COAT': {
+  'カーボンナノチューブ': {
     type: 'coating',
-    basePrice: 66000,
-    duration: 420,
-    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
-  },
-  'IZM COAT': {
-    type: 'coating',
-    basePrice: 110000,
-    duration: 420,
-    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
-  },
-  'OVER COAT SEALANT': {
-    type: 'coating',
-    basePrice: 220000,
-    duration: 420,
-    patterns: ['研磨なし（3日）', '軽研磨（5日）', '2周研磨（7日）']
+    patterns: {
+      '研磨なし': {
+        label: '研磨なし（3〜5日程度）',
+        days: 5,
+        priceBySize: { SS: 77000, S: 88000, M: 99000, L: 110000, XL: 121000, XXL: 132000 }
+      },
+      '研磨1工程': {
+        label: '研磨1工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 110000, S: 121000, M: 132000, L: 143000, XL: 154000, XXL: 165000 }
+      },
+      '研磨2工程': {
+        label: '研磨2工程（5〜7日程度）',
+        days: 7,
+        priceBySize: { SS: 143000, S: 154000, M: 165000, L: 176000, XL: 187000, XXL: 198000 }
+      }
+    }
   }
 };
 
@@ -179,11 +181,6 @@ async function isCoatingInProgress(startDate) {
   }
 }
 
-function parsePatternDays(pattern) {
-  const match = pattern && pattern.match(/(\d+)日/);
-  return match ? parseInt(match[1], 10) : 3;
-}
-
 async function addEventToCalendar(userId, menuName, details) {
   try {
     const menu = MENUS[menuName];
@@ -201,11 +198,11 @@ async function addEventToCalendar(userId, menuName, details) {
       basePrice = menu.prices[details.size];
       eventDescription += `サイズ: ${details.size}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
     } else {
-      // コーティングは施工期間全体（3日/5日/7日）をブロックする
-      const patternDays = parsePatternDays(details.pattern);
-      endTime = new Date(startTime.getTime() + patternDays * 24 * 60 * 60 * 1000);
-      basePrice = menu.basePrice;
-      eventDescription += `サイズ: ${details.size}\nパターン: ${details.pattern}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
+      // コーティングは施工期間全体（研磨工程に応じた日数）をブロックする
+      const patternInfo = menu.patterns[details.pattern];
+      endTime = new Date(startTime.getTime() + patternInfo.days * 24 * 60 * 60 * 1000);
+      basePrice = patternInfo.priceBySize[details.size];
+      eventDescription += `サイズ: ${details.size}\nパターン: ${patternInfo.label}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
     }
 
     const options = details.options || [];
@@ -437,7 +434,7 @@ function buildCoatingMenuFlex() {
         layout: 'vertical',
         paddingAll: 'lg',
         contents: coatingNames.map(name =>
-          buildSelectableCard(name, `¥${MENUS[name].basePrice.toLocaleString()}〜`, name, BRAND.goldDark, BRAND.goldBg)
+          buildSelectableCard(name, `¥${MENUS[name].patterns['研磨なし'].priceBySize.SS.toLocaleString()}〜`, name, BRAND.goldDark, BRAND.goldBg)
         )
       },
       footer: buildFooter('コーティング期間中は他のご予約をお受けできません')
@@ -547,17 +544,18 @@ function buildCoatingSizeFlex(menuName) {
   };
 }
 
-function buildPatternFlex(menuName, menu) {
-  const patternButtons = menu.patterns.map(pattern => ({
+function buildPatternFlex(menuName, menu, size) {
+  const patternButtons = Object.entries(menu.patterns).map(([key, p]) => ({
     type: 'box',
-    layout: 'vertical',
+    layout: 'horizontal',
     margin: 'md',
     paddingAll: 'md',
     backgroundColor: BRAND.goldBg,
     cornerRadius: 'md',
-    action: { type: 'message', label: pattern, text: `pattern_${pattern}` },
+    action: { type: 'message', label: p.label, text: `pattern_${key}` },
     contents: [
-      { type: 'text', text: pattern, weight: 'bold', size: 'sm', color: BRAND.goldDark }
+      { type: 'text', text: p.label, weight: 'bold', size: 'sm', color: BRAND.goldDark, flex: 3, wrap: true, gravity: 'center' },
+      { type: 'text', text: `¥${p.priceBySize[size].toLocaleString()}`, weight: 'bold', size: 'sm', color: BRAND.goldDark, flex: 2, align: 'end', gravity: 'center' }
     ]
   }));
 
@@ -566,13 +564,13 @@ function buildPatternFlex(menuName, menu) {
     altText: 'コーティングパターン選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(`¥${menu.basePrice.toLocaleString()}〜`, menuName, BRAND.goldDark),
+      header: buildHeader(`サイズ: ${size}`, menuName, BRAND.goldDark),
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: '施工パターンをお選びください', weight: 'bold', size: 'md', color: BRAND.goldDark },
+          { type: 'text', text: '研磨工程をお選びください', weight: 'bold', size: 'md', color: BRAND.goldDark },
           ...patternButtons
         ]
       },
@@ -1058,7 +1056,7 @@ async function handleUserMessage(event) {
       } else {
         userState.step = 'select_coating_pattern';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildPatternFlex(userState.selectedMenu, menu));
+        await client.replyMessage(event.replyToken, buildPatternFlex(userState.selectedMenu, menu, userState.size));
       }
       return;
     }
@@ -1203,10 +1201,14 @@ async function handleUserMessage(event) {
 
       const result = await addEventToCalendar(userId, userState.selectedMenu, bookingDetails);
 
+      const patternLabel = userState.pattern && MENUS[userState.selectedMenu].type === 'coating'
+        ? MENUS[userState.selectedMenu].patterns[userState.pattern].label
+        : userState.pattern;
+
       let confirmMessage = `✅ 予約確定\n\n`;
       confirmMessage += `メニュー: ${userState.selectedMenu}\n`;
       confirmMessage += userState.size !== 'N/A' && userState.size ? `サイズ: ${userState.size}\n` : '';
-      confirmMessage += userState.pattern !== 'N/A' && userState.pattern ? `パターン: ${userState.pattern}\n` : '';
+      confirmMessage += userState.pattern !== 'N/A' && userState.pattern ? `パターン: ${patternLabel}\n` : '';
       if (userState.options && userState.options.length > 0) {
         confirmMessage += `\n【オプション】\n`;
         userState.options.forEach(o => {
