@@ -461,19 +461,21 @@ function buildCategoryFlex() {
   };
 }
 
-function buildMenuBubble(name, subtitle, accentColor, bgColor, headerBg, footerText) {
+function buildMenuBubble(name, subtitle, accentColor, bgColor, headerBg, footerText, displayTitle) {
   return {
     type: 'bubble',
     size: 'kilo',
-    header: buildHeader(null, name, headerBg),
+    header: buildHeader(null, displayTitle || name, headerBg),
     body: {
       type: 'box',
       layout: 'vertical',
       paddingAll: 'md',
       contents: [
+        ...(displayTitle ? [{ type: 'text', text: name, size: 'xxs', color: BRAND.gray, wrap: true }] : []),
         {
           type: 'box',
           layout: 'vertical',
+          margin: displayTitle ? 'sm' : 'none',
           paddingAll: 'md',
           backgroundColor: bgColor,
           cornerRadius: 'md',
@@ -523,19 +525,21 @@ function buildWashMenuFlex() {
 
 function buildCoatingMenuFlex() {
   const coatingNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'coating');
+  const displayTitles = ['ベーシック（1層）', 'スタンダード（2層）', 'プレミアム（3層）'];
   return {
     type: 'flex',
     altText: 'コーティングメニュー選択',
     contents: {
       type: 'carousel',
-      contents: coatingNames.map(name =>
+      contents: coatingNames.map((name, i) =>
         buildMenuBubble(
           name,
           `¥${MENUS[name].patterns['研磨なし'].priceBySize.SS.toLocaleString()}〜`,
           BRAND.goldDark,
           BRAND.goldBg,
           BRAND.goldDark,
-          'コーティング期間中は\n他のご予約をお受けできません'
+          'コーティング期間中は\n他のご予約をお受けできません',
+          displayTitles[i]
         )
       )
     }
