@@ -462,44 +462,36 @@ function buildCategoryFlex() {
 }
 
 function buildMenuBubble(name, subtitle, accentColor, bgColor, headerBg, footerText) {
-  const subtitleLines = subtitle.split('\n');
   return {
     type: 'bubble',
+    size: 'kilo',
     header: buildHeader(null, name, headerBg),
     body: {
       type: 'box',
       layout: 'vertical',
-      paddingAll: 'lg',
+      paddingAll: 'md',
       contents: [
         {
           type: 'box',
           layout: 'vertical',
-          paddingAll: 'lg',
+          paddingAll: 'md',
           backgroundColor: bgColor,
           cornerRadius: 'md',
           contents: [
-            { type: 'text', text: '料金の目安', size: 'xs', color: BRAND.gray },
-            ...subtitleLines.map((line, i) => ({
-              type: 'text',
-              text: line,
-              weight: 'bold',
-              size: 'lg',
-              color: accentColor,
-              margin: i === 0 ? 'sm' : 'xs',
-              wrap: true
-            }))
+            { type: 'text', text: '料金の目安', size: 'xxs', color: BRAND.gray },
+            { type: 'text', text: subtitle, weight: 'bold', size: 'md', color: accentColor, margin: 'xs', wrap: false }
           ]
         },
         {
           type: 'box',
           layout: 'vertical',
-          margin: 'lg',
-          paddingAll: 'md',
+          margin: 'md',
+          paddingAll: 'sm',
           backgroundColor: accentColor,
           cornerRadius: 'md',
           action: { type: 'message', label: name, text: name },
           contents: [
-            { type: 'text', text: 'このメニューを選ぶ', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
+            { type: 'text', text: 'このメニューを選ぶ', color: '#FFFFFF', weight: 'bold', size: 'xs', align: 'center' }
           ]
         }
       ]
@@ -518,7 +510,7 @@ function buildWashMenuFlex() {
       contents: washNames.map(name =>
         buildMenuBubble(
           name,
-          `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜\nXXL ¥${MENUS[name].prices.XXL.toLocaleString()}`,
+          `¥${MENUS[name].prices.S.toLocaleString()}〜`,
           BRAND.navy,
           BRAND.navyBg,
           BRAND.navy,
