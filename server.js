@@ -501,7 +501,7 @@ function buildCarSizeSearchButton(theme) {
     cornerRadius: 'md',
     action: { type: 'uri', label: '車種からサイズを調べる', uri: `${BASE_URL}/car-size-search.html` },
     contents: [
-      { type: 'text', text: '🔍 愛車のサイズが分からない方はこちら', color: '#e6b566', weight: 'bold', size: 'xs', flex: 4, wrap: true, gravity: 'center' },
+      { type: 'text', text: '愛車のサイズがわからない方はこちら(車両サイズ検索)', color: '#e6b566', weight: 'bold', size: 'xs', flex: 4, wrap: true, gravity: 'center' },
       { type: 'text', text: '＞', color: '#e6b566', size: 'xs', flex: 1, align: 'end', gravity: 'center' }
     ]
   };
