@@ -390,7 +390,7 @@ function buildCategoryFlex() {
             action: { type: 'message', label: 'コーティング', text: 'category_coating' },
             contents: [
               { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-              { type: 'text', text: 'ISM COAT／IZM COAT／OVER COAT SEALANT', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
+              { type: 'text', text: 'カーボンナノチューブコーティング', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
             ]
           }
         ]
