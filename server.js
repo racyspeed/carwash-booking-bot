@@ -33,6 +33,8 @@ const serviceAccount = {
 // ★修正済み: 正しいカレンダーID
 const CALENDAR_ID = 'ba77e62c075319e36884d0ec52c9f7defd7d2ce5828f8b3deedda7890cb26a91@group.calendar.google.com';
 
+const BASE_URL = process.env.BASE_URL || 'https://web-production-7fc6d.up.railway.app';
+
 const auth = new google.auth.GoogleAuth({
   credentials: serviceAccount,
   scopes: ['https://www.googleapis.com/auth/calendar']
@@ -489,6 +491,22 @@ function buildCoatingMenuFlex() {
   };
 }
 
+function buildCarSizeSearchButton(theme) {
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: '#171b23',
+    cornerRadius: 'md',
+    action: { type: 'uri', label: '車種からサイズを調べる', uri: `${BASE_URL}/car-size-search.html` },
+    contents: [
+      { type: 'text', text: '🔍 愛車のサイズが分からない方はこちら', color: '#e6b566', weight: 'bold', size: 'xs', flex: 4, wrap: true, gravity: 'center' },
+      { type: 'text', text: '＞', color: '#e6b566', size: 'xs', flex: 1, align: 'end', gravity: 'center' }
+    ]
+  };
+}
+
 function buildSizeFlex(menuName, menu) {
   const sizeLabels = {
     SS: '軽自動車',
@@ -540,6 +558,7 @@ function buildSizeFlex(menuName, menu) {
         paddingAll: 'lg',
         contents: [
           { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          buildCarSizeSearchButton(),
           ...sizeButtons
         ]
       },
@@ -583,6 +602,7 @@ function buildCoatingSizeFlex(menuName) {
         paddingAll: 'lg',
         contents: [
           { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.goldDark },
+          buildCarSizeSearchButton(),
           ...sizeButtons
         ]
       },
@@ -1467,6 +1487,8 @@ function verifySignature(rawBody, signature) {
   const computed = hmac.digest('base64');
   return signature === computed;
 }
+
+app.use(express.static('public'));
 
 app.use(express.json({
   verify: (req, res, buf) => {
