@@ -548,7 +548,19 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
     margin: 'xs',
     contents: week.map(date => {
       if (!date) {
-        return { type: 'box', layout: 'vertical', flex: 1, contents: [{ type: 'filler' }] };
+        return {
+          type: 'box',
+          layout: 'vertical',
+          flex: 1,
+          margin: 'xs',
+          paddingAll: 'xs',
+          cornerRadius: 'sm',
+          alignItems: 'center',
+          contents: [
+            { type: 'text', text: ' ', size: 'xs', align: 'center' },
+            { type: 'text', text: ' ', size: 'xxs', align: 'center', margin: 'xs' }
+          ]
+        };
       }
       const status = getDateStatus(date, today, events);
       const meta = STATUS_META[status];
@@ -569,7 +581,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
             text: `${date.getDate()}`,
             size: 'xs',
             align: 'center',
-            weight: clickable ? 'bold' : 'regular',
+            weight: 'bold',
             color: clickable ? BRAND.navy : BRAND.lightGray
           },
           { type: 'text', text: meta.label, size: 'xxs', align: 'center', color: meta.color, margin: 'xs' }
