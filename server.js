@@ -74,17 +74,17 @@ const MENUS = {
     type: 'coating',
     patterns: {
       '研磨なし': {
-        label: '研磨なし（3〜5日程度）',
-        days: 5,
+        label: '研磨なし（3日程度）',
+        days: 3,
         priceBySize: { SS: 66000, S: 77000, M: 88000, L: 99000, XL: 110000, XXL: 121000 }
       },
       '研磨1工程': {
-        label: '研磨1工程（5〜7日程度）',
-        days: 7,
+        label: '研磨1工程（5日程度）',
+        days: 5,
         priceBySize: { SS: 99000, S: 110000, M: 121000, L: 132000, XL: 143000, XXL: 154000 }
       },
       '研磨2工程': {
-        label: '研磨2工程（5〜7日程度）',
+        label: '研磨2工程（7日程度）',
         days: 7,
         priceBySize: { SS: 132000, S: 143000, M: 154000, L: 165000, XL: 176000, XXL: 187000 }
       }
@@ -94,17 +94,17 @@ const MENUS = {
     type: 'coating',
     patterns: {
       '研磨なし': {
-        label: '研磨なし（3〜5日程度）',
-        days: 5,
+        label: '研磨なし（3日程度）',
+        days: 3,
         priceBySize: { SS: 77000, S: 88000, M: 99000, L: 110000, XL: 121000, XXL: 132000 }
       },
       '研磨1工程': {
-        label: '研磨1工程（5〜7日程度）',
-        days: 7,
+        label: '研磨1工程（5日程度）',
+        days: 5,
         priceBySize: { SS: 110000, S: 121000, M: 132000, L: 143000, XL: 154000, XXL: 165000 }
       },
       '研磨2工程': {
-        label: '研磨2工程（5〜7日程度）',
+        label: '研磨2工程（7日程度）',
         days: 7,
         priceBySize: { SS: 143000, S: 154000, M: 165000, L: 176000, XL: 187000, XXL: 198000 }
       }
@@ -114,17 +114,17 @@ const MENUS = {
     type: 'coating',
     patterns: {
       '研磨なし': {
-        label: '研磨なし（3〜5日程度）',
-        days: 5,
+        label: '研磨なし（3日程度）',
+        days: 3,
         priceBySize: { SS: 99000, S: 110000, M: 121000, L: 132000, XL: 143000, XXL: 154000 }
       },
       '研磨1工程': {
-        label: '研磨1工程（5〜7日程度）',
-        days: 7,
+        label: '研磨1工程（5日程度）',
+        days: 5,
         priceBySize: { SS: 132000, S: 143000, M: 154000, L: 165000, XL: 176000, XXL: 187000 }
       },
       '研磨2工程': {
-        label: '研磨2工程（5〜7日程度）',
+        label: '研磨2工程（7日程度）',
         days: 7,
         priceBySize: { SS: 165000, S: 176000, M: 187000, L: 198000, XL: 209000, XXL: 220000 }
       }
@@ -138,9 +138,9 @@ const OPTIONS = {
     key: 'window',
     name: '窓ガラスコーティング',
     variants: {
-      front: { label: 'フロントガラスのみ', price: { 'SS~M': 5500, 'L~XXL': 6600 } },
-      full_noroof: { label: 'ガラス全面（ルーフなし）', price: { 'SS~M': 22000, 'L~XXL': 24200 } },
-      full_roof: { label: 'ガラス全面（ルーフあり）', price: { 'SS~M': 25300, 'L~XXL': 28600 } }
+      front: { label: 'フロントガラスのみ', price: { 'SS~M': 5500, 'L~XXL': 6600 }, duration: 60 },
+      full_noroof: { label: 'ガラス全面（ルーフなし）', price: { 'SS~M': 22000, 'L~XXL': 24200 }, duration: 120 },
+      full_roof: { label: 'ガラス全面（ルーフあり）', price: { 'SS~M': 25300, 'L~XXL': 28600 }, duration: 150 }
     }
   },
   wheel: {
@@ -150,27 +150,32 @@ const OPTIONS = {
       1: { '15': 5500, '19': 7700, '20plus': 8800 },
       4: { '15': 22000, '19': 30800, '20plus': 35200 }
     },
+    durationByCount: { 1: 60, 4: 240 },
     inchLabel: { '15': '～15インチ', '19': '16～19インチ', '20plus': '20インチ～' }
   },
   resin: {
     key: 'resin',
     name: '樹脂コーティング',
-    price: { 'SS~M': 8800, 'L~XXL': 11000 }
+    price: { 'SS~M': 8800, 'L~XXL': 11000 },
+    duration: 60
   },
   interior: {
     key: 'interior',
     name: '車内清掃',
-    price: { 'SS~M': 5500, 'L~XXL': 7700 }
+    price: { 'SS~M': 5500, 'L~XXL': 7700 },
+    duration: 60
   },
   leather: {
     key: 'leather',
     name: 'レザーコーティング',
-    price: { 'SS~M': 33000, 'L~XXL': 44000 }
+    price: { 'SS~M': 33000, 'L~XXL': 44000 },
+    duration: 180
   },
   polish: {
     key: 'polish',
     name: '部分研磨',
-    price: null // 応相談
+    price: null, // 応相談
+    duration: null // 応相談
   }
 };
 
@@ -231,8 +236,11 @@ async function addEventToCalendar(userId, menuName, details) {
     let eventDescription = `顧客ID: ${userId}\n`;
     let basePrice;
 
+    const options = details.options || [];
+    const optionsMinutes = options.reduce((sum, o) => sum + (o.duration || 0), 0);
+
     if (menu.type === 'wash') {
-      const durationMinutes = menu.duration[details.size];
+      const durationMinutes = menu.duration[details.size] + optionsMinutes;
       endTime = new Date(startTime.getTime() + durationMinutes * 60000);
       eventTitle += ` (${details.size})`;
       basePrice = menu.prices[details.size];
@@ -245,7 +253,6 @@ async function addEventToCalendar(userId, menuName, details) {
       eventDescription += `サイズ: ${details.size}\nパターン: ${patternInfo.label}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
     }
 
-    const options = details.options || [];
     let optionsTotal = 0;
     let hasQuoteOption = false;
     if (options.length > 0) {
@@ -865,13 +872,27 @@ function computeBookingSummary(userState) {
   let basePrice;
   let durationLabel;
 
+  let optionsDurationMinutes = 0;
+  let hasQuoteDuration = false;
+  options.forEach(o => {
+    if (o.duration === null || o.duration === undefined) {
+      hasQuoteDuration = true;
+    } else {
+      optionsDurationMinutes += o.duration;
+    }
+  });
+
   if (menu.type === 'wash') {
     basePrice = menu.prices[userState.size];
-    durationLabel = formatDuration(menu.duration[userState.size]);
+    const totalMinutes = menu.duration[userState.size] + optionsDurationMinutes;
+    durationLabel = formatDuration(totalMinutes) + (hasQuoteDuration ? '＋応相談分' : '');
   } else {
     const patternInfo = menu.patterns[userState.pattern];
     basePrice = patternInfo.priceBySize[userState.size];
-    durationLabel = `${patternInfo.label.match(/（(.+)）/)?.[1] || `${patternInfo.days}日程度`}`;
+    const dayLabel = patternInfo.label.match(/（(.+)）/)?.[1] || `${patternInfo.days}日程度`;
+    durationLabel = dayLabel
+      + (optionsDurationMinutes > 0 ? `（＋オプション作業${formatDuration(optionsDurationMinutes)}）` : '')
+      + (hasQuoteDuration ? '＋応相談分' : '');
   }
 
   let optionsTotal = 0;
@@ -889,7 +910,8 @@ function computeBookingSummary(userState) {
     optionsTotal,
     total: basePrice + optionsTotal,
     hasQuoteOption,
-    durationLabel
+    durationLabel,
+    optionsDurationMinutes
   };
 }
 
@@ -920,7 +942,15 @@ function buildSummaryFlex(userState) {
         margin: 'sm',
         contents: [
           { type: 'text', text: o.label, size: 'xs', color: BRAND.gray, flex: 3, wrap: true },
-          { type: 'text', text: o.price === null ? '応相談' : `¥${o.price.toLocaleString()}`, size: 'xs', color: BRAND.gray, flex: 2, align: 'end' }
+          {
+            type: 'text',
+            text: `${o.price === null ? '応相談' : `¥${o.price.toLocaleString()}`}${o.duration ? `／${formatDuration(o.duration)}` : ''}`,
+            size: 'xs',
+            color: BRAND.gray,
+            flex: 3,
+            align: 'end',
+            wrap: true
+          }
         ]
       });
     });
@@ -1287,7 +1317,7 @@ async function handleUserMessage(event) {
         const price = opt.price === null ? null : opt.price[bucket];
 
         userState.options = userState.options || [];
-        userState.options.push({ label: opt.name, price });
+        userState.options.push({ label: opt.name, price, duration: opt.duration });
         userStates.set(userId, userState);
 
         await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
@@ -1301,7 +1331,7 @@ async function handleUserMessage(event) {
         const price = variant.price[bucket];
 
         userState.options = userState.options || [];
-        userState.options.push({ label: `${OPTIONS.window.name}（${variant.label}）`, price });
+        userState.options.push({ label: `${OPTIONS.window.name}（${variant.label}）`, price, duration: variant.duration });
         userState.optionSubstep = null;
         userStates.set(userId, userState);
 
@@ -1325,7 +1355,7 @@ async function handleUserMessage(event) {
         const price = OPTIONS.wheel.priceTable[count][inchKey];
 
         userState.options = userState.options || [];
-        userState.options.push({ label: `${OPTIONS.wheel.name}（${count}本・${OPTIONS.wheel.inchLabel[inchKey]}）`, price });
+        userState.options.push({ label: `${OPTIONS.wheel.name}（${count}本・${OPTIONS.wheel.inchLabel[inchKey]}）`, price, duration: OPTIONS.wheel.durationByCount[count] });
         userState.optionSubstep = null;
         userState.wheelCount = null;
         userStates.set(userId, userState);
@@ -1373,7 +1403,8 @@ async function handleUserMessage(event) {
       }
 
       const menu = MENUS[userState.selectedMenu];
-      const durationMinutes = menu.type === 'wash' ? menu.duration[userState.size] : 60;
+      const optionsMinutes = (userState.options || []).reduce((sum, o) => sum + (o.duration || 0), 0);
+      const durationMinutes = (menu.type === 'wash' ? menu.duration[userState.size] : 60) + optionsMinutes;
       const provisionalEnd = new Date(bookingDateTime.getTime() + durationMinutes * 60000);
 
       const conflict = await hasConflict(bookingDateTime, provisionalEnd);
