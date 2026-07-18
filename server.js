@@ -376,7 +376,7 @@ function buildHeader(subtitle, title, accentBg) {
     backgroundColor: bg,
     paddingAll: 'lg',
     contents: [
-      { type: 'text', text: "🎌 RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
+      { type: 'text', text: "RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
       { type: 'text', text: `【 ${title} 】`, color: '#FFFFFF', weight: 'bold', size: 'lg', margin: 'sm', wrap: true },
       ...(subtitle ? [{ type: 'text', text: `― ${subtitle} ―`, color: '#C9CEDC', size: 'xs', margin: 'sm', wrap: true }] : [])
     ]
@@ -384,13 +384,20 @@ function buildHeader(subtitle, title, accentBg) {
 }
 
 function buildFooter(text) {
+  const lines = text.split('\n');
   return {
     type: 'box',
     layout: 'vertical',
     paddingAll: 'md',
-    contents: [
-      { type: 'text', text: text, size: 'xxs', color: BRAND.lightGray, align: 'center', wrap: true }
-    ]
+    contents: lines.map((line, i) => ({
+      type: 'text',
+      text: line,
+      size: 'xxs',
+      color: BRAND.lightGray,
+      align: 'center',
+      wrap: true,
+      margin: i === 0 ? 'none' : 'xs'
+    }))
   };
 }
 
@@ -454,23 +461,70 @@ function buildCategoryFlex() {
   };
 }
 
+function buildMenuBubble(name, subtitle, accentColor, bgColor, headerBg, footerText) {
+  const subtitleLines = subtitle.split('\n');
+  return {
+    type: 'bubble',
+    header: buildHeader(null, name, headerBg),
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'lg',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: 'lg',
+          backgroundColor: bgColor,
+          cornerRadius: 'md',
+          contents: [
+            { type: 'text', text: '料金の目安', size: 'xs', color: BRAND.gray },
+            ...subtitleLines.map((line, i) => ({
+              type: 'text',
+              text: line,
+              weight: 'bold',
+              size: 'lg',
+              color: accentColor,
+              margin: i === 0 ? 'sm' : 'xs',
+              wrap: true
+            }))
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'lg',
+          paddingAll: 'md',
+          backgroundColor: accentColor,
+          cornerRadius: 'md',
+          action: { type: 'message', label: name, text: name },
+          contents: [
+            { type: 'text', text: 'このメニューを選ぶ', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
+          ]
+        }
+      ]
+    },
+    footer: buildFooter(footerText)
+  };
+}
+
 function buildWashMenuFlex() {
   const washNames = Object.keys(MENUS).filter(n => MENUS[n].type === 'wash');
   return {
     type: 'flex',
     altText: '洗車メニュー選択',
     contents: {
-      type: 'bubble',
-      header: buildHeader('ご希望の洗車コースをお選びください', '洗車メニュー', BRAND.navy),
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'lg',
-        contents: washNames.map(name =>
-          buildSelectableCard(name, `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜 XXL ¥${MENUS[name].prices.XXL.toLocaleString()}`, name, BRAND.navy, BRAND.navyBg)
+      type: 'carousel',
+      contents: washNames.map(name =>
+        buildMenuBubble(
+          name,
+          `SS/S ¥${MENUS[name].prices.S.toLocaleString()}〜\nXXL ¥${MENUS[name].prices.XXL.toLocaleString()}`,
+          BRAND.navy,
+          BRAND.navyBg,
+          BRAND.navy,
+          '営業時間 10:00-18:00\n（月・火定休）'
         )
-      },
-      footer: buildFooter('営業時間 10:00-18:00（月・火定休）')
+      )
     }
   };
 }
@@ -481,17 +535,17 @@ function buildCoatingMenuFlex() {
     type: 'flex',
     altText: 'コーティングメニュー選択',
     contents: {
-      type: 'bubble',
-      header: buildHeader('ご希望のコーティングをお選びください', 'コーティングメニュー', BRAND.goldDark),
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'lg',
-        contents: coatingNames.map(name =>
-          buildSelectableCard(name, `¥${MENUS[name].patterns['研磨なし'].priceBySize.SS.toLocaleString()}〜`, name, BRAND.goldDark, BRAND.goldBg)
+      type: 'carousel',
+      contents: coatingNames.map(name =>
+        buildMenuBubble(
+          name,
+          `¥${MENUS[name].patterns['研磨なし'].priceBySize.SS.toLocaleString()}〜`,
+          BRAND.goldDark,
+          BRAND.goldBg,
+          BRAND.goldDark,
+          'コーティング期間中は\n他のご予約をお受けできません'
         )
-      },
-      footer: buildFooter('コーティング期間中は他のご予約をお受けできません')
+      )
     }
   };
 }
@@ -806,7 +860,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, the
         ...weekRows
       ]
     },
-    footer: buildFooter('ご予約・キャンセルは2日前まで承ります。月・火は定休日です。')
+    footer: buildFooter('ご予約・キャンセルは2日前まで承ります。\n月・火は定休日です。')
   };
 }
 
