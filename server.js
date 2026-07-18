@@ -132,6 +132,8 @@ function getSizeBucket(size) {
   return ['SS', 'S', 'M'].includes(size) ? 'SS~M' : 'L~XXL';
 }
 
+const userStates = new Map();
+
 function isBusinessOpen(date) {
   const day = date.getDay();
   const hour = date.getHours();
