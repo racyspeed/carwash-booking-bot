@@ -789,7 +789,7 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents, theme) {
   const [y, m, d] = dateKeyStr.split('-').map(Number);
   const slots = generateHourlySlots();
 
-  const buttons = slots.map(time => {
+  const cells = slots.map(time => {
     const [hh, mm] = time.split(':').map(Number);
     const slotStart = new Date(y, m - 1, d, hh, mm);
     const slotEnd = new Date(slotStart.getTime() + 60 * 60000);
@@ -800,23 +800,36 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents, theme) {
       return evStart < slotEnd && evEnd > slotStart;
     });
 
-    const row = {
+    const cell = {
       type: 'box',
-      layout: 'horizontal',
-      margin: 'sm',
+      layout: 'vertical',
+      flex: 1,
+      margin: 'xs',
       paddingAll: 'sm',
+      cornerRadius: 'sm',
+      alignItems: 'center',
       backgroundColor: taken ? '#EDEDED' : theme.bg,
-      cornerRadius: 'md',
       contents: [
-        { type: 'text', text: time, size: 'sm', color: taken ? BRAND.lightGray : theme.main, flex: 3, gravity: 'center' },
-        { type: 'text', text: taken ? '✕' : '○', size: 'md', weight: 'bold', color: taken ? BRAND.lightGray : theme.main, flex: 1, align: 'end', gravity: 'center' }
+        { type: 'text', text: time, size: 'xs', weight: 'bold', align: 'center', color: taken ? BRAND.lightGray : theme.main },
+        { type: 'text', text: taken ? '✕' : '○', size: 'xs', align: 'center', color: taken ? BRAND.lightGray : theme.main, margin: 'xs' }
       ]
     };
     if (!taken) {
-      row.action = { type: 'message', label: time, text: `time_${time}` };
+      cell.action = { type: 'message', label: time, text: `time_${time}` };
     }
-    return row;
+    return cell;
   });
+
+  const columns = 4;
+  const rows = [];
+  for (let i = 0; i < cells.length; i += columns) {
+    rows.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      contents: cells.slice(i, i + columns)
+    });
+  }
 
   return {
     type: 'flex',
@@ -828,9 +841,143 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents, theme) {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
-        contents: buttons
+        contents: [
+          { type: 'text', text: '○空きあり　✕予約不可', size: 'xxs', color: BRAND.gray },
+          { type: 'separator', margin: 'sm' },
+          ...rows
+        ]
       },
       footer: buildFooter('ご来店予定時間の目安です')
+    }
+  };
+}
+
+function formatDuration(minutes) {
+  if (minutes < 60) return `約${minutes}分`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest > 0 ? `約${hours}時間${rest}分` : `約${hours}時間`;
+}
+
+function computeBookingSummary(userState) {
+  const menu = MENUS[userState.selectedMenu];
+  const options = userState.options || [];
+  let basePrice;
+  let durationLabel;
+
+  if (menu.type === 'wash') {
+    basePrice = menu.prices[userState.size];
+    durationLabel = formatDuration(menu.duration[userState.size]);
+  } else {
+    const patternInfo = menu.patterns[userState.pattern];
+    basePrice = patternInfo.priceBySize[userState.size];
+    durationLabel = `${patternInfo.label.match(/（(.+)）/)?.[1] || `${patternInfo.days}日程度`}`;
+  }
+
+  let optionsTotal = 0;
+  let hasQuoteOption = false;
+  options.forEach(o => {
+    if (o.price === null) {
+      hasQuoteOption = true;
+    } else {
+      optionsTotal += o.price;
+    }
+  });
+
+  return {
+    basePrice,
+    optionsTotal,
+    total: basePrice + optionsTotal,
+    hasQuoteOption,
+    durationLabel
+  };
+}
+
+function buildSummaryFlex(userState) {
+  const menu = MENUS[userState.selectedMenu];
+  const theme = getMenuTheme(userState.selectedMenu);
+  const summary = computeBookingSummary(userState);
+  const options = userState.options || [];
+
+  const rows = [];
+  rows.push({ type: 'text', text: userState.selectedMenu, weight: 'bold', size: 'md', color: theme.main, wrap: true });
+  if (userState.size) {
+    rows.push({ type: 'text', text: `サイズ：${userState.size}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
+  }
+  if (menu.type === 'coating' && userState.pattern) {
+    rows.push({ type: 'text', text: `研磨工程：${menu.patterns[userState.pattern].label}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
+  }
+  rows.push({ type: 'text', text: `施工目安時間：${summary.durationLabel}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
+  rows.push({ type: 'text', text: `本体価格：¥${summary.basePrice.toLocaleString()}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
+
+  if (options.length > 0) {
+    rows.push({ type: 'separator', margin: 'lg' });
+    rows.push({ type: 'text', text: '【オプション】', weight: 'bold', size: 'sm', color: theme.main, margin: 'lg' });
+    options.forEach(o => {
+      rows.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'sm',
+        contents: [
+          { type: 'text', text: o.label, size: 'xs', color: BRAND.gray, flex: 3, wrap: true },
+          { type: 'text', text: o.price === null ? '応相談' : `¥${o.price.toLocaleString()}`, size: 'xs', color: BRAND.gray, flex: 2, align: 'end' }
+        ]
+      });
+    });
+  }
+
+  rows.push({ type: 'separator', margin: 'lg' });
+  rows.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'lg',
+    contents: [
+      { type: 'text', text: '合計金額', weight: 'bold', size: 'md', color: theme.main, flex: 2 },
+      {
+        type: 'text',
+        text: `¥${summary.total.toLocaleString()}${summary.hasQuoteOption ? '〜' : ''}`,
+        weight: 'bold',
+        size: 'md',
+        color: theme.main,
+        align: 'end',
+        flex: 3
+      }
+    ]
+  });
+  if (summary.hasQuoteOption) {
+    rows.push({ type: 'text', text: '※応相談オプションを含むため別途お見積り', size: 'xxs', color: BRAND.gray, align: 'end', margin: 'xs' });
+  }
+
+  return {
+    type: 'flex',
+    altText: 'ご予約内容の確認',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('この内容でよろしいですか？', 'ご予約内容の確認', theme.main),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: rows
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'md',
+            backgroundColor: theme.main,
+            cornerRadius: 'md',
+            action: { type: 'message', label: 'カレンダーへ進む', text: 'confirm_proceed' },
+            contents: [
+              { type: 'text', text: 'この内容でカレンダーへ進む', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
+            ]
+          }
+        ]
+      }
     }
   };
 }
@@ -1113,9 +1260,9 @@ async function handleUserMessage(event) {
 
     if (userState.step === 'select_options') {
       if (userMessage === 'option_done') {
-        userState.step = 'select_date';
+        userState.step = 'confirm_summary';
         userStates.set(userId, userState);
-        await replyDateSelection(event.replyToken, userState.selectedMenu);
+        await client.replyMessage(event.replyToken, buildSummaryFlex(userState));
         return;
       }
 
@@ -1186,6 +1333,13 @@ async function handleUserMessage(event) {
         await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
         return;
       }
+    }
+
+    if (userState.step === 'confirm_summary' && userMessage === 'confirm_proceed') {
+      userState.step = 'select_date';
+      userStates.set(userId, userState);
+      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      return;
     }
 
     if (userState.step === 'select_date' && userMessage?.startsWith('date_')) {
