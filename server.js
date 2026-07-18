@@ -687,11 +687,11 @@ async function handleUserMessage(event) {
   let userState = userStates.get(userId) || {};
 
   try {
-    if (!userState.step) {
-      if (userMessage === '予約' || userMessage === 'メニュー') {
-        await client.replyMessage(event.replyToken, buildCategoryFlex());
-        return;
-      }
+    if (userMessage === '予約' || userMessage === 'メニュー') {
+      userState = {};
+      userStates.set(userId, userState);
+      await client.replyMessage(event.replyToken, buildCategoryFlex());
+      return;
     }
 
     if (userMessage === 'category_wash') {
