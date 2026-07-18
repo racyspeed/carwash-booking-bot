@@ -86,7 +86,51 @@ const MENUS = {
   }
 };
 
-const userStates = new Map();
+// オプションメニュー
+const OPTIONS = {
+  window: {
+    key: 'window',
+    name: '窓ガラスコーティング',
+    variants: {
+      front: { label: 'フロントガラスのみ', price: { 'SS~M': 5500, 'L~XXL': 6600 } },
+      full_noroof: { label: 'ガラス全面（ルーフなし）', price: { 'SS~M': 22000, 'L~XXL': 24200 } },
+      full_roof: { label: 'ガラス全面（ルーフあり）', price: { 'SS~M': 25300, 'L~XXL': 28600 } }
+    }
+  },
+  wheel: {
+    key: 'wheel',
+    name: 'ホイールコーティング',
+    priceTable: {
+      1: { '15': 5500, '19': 7700, '20plus': 8800 },
+      4: { '15': 22000, '19': 30800, '20plus': 35200 }
+    },
+    inchLabel: { '15': '～15インチ', '19': '16～19インチ', '20plus': '20インチ～' }
+  },
+  resin: {
+    key: 'resin',
+    name: '樹脂コーティング',
+    price: { 'SS~M': 8800, 'L~XXL': 11000 }
+  },
+  interior: {
+    key: 'interior',
+    name: '車内清掃',
+    price: { 'SS~M': 5500, 'L~XXL': 7700 }
+  },
+  leather: {
+    key: 'leather',
+    name: 'レザーコーティング',
+    price: { 'SS~M': 33000, 'L~XXL': 44000 }
+  },
+  polish: {
+    key: 'polish',
+    name: '部分研磨',
+    price: null // 応相談
+  }
+};
+
+function getSizeBucket(size) {
+  return ['SS', 'S', 'M'].includes(size) ? 'SS~M' : 'L~XXL';
+}
 
 function isBusinessOpen(date) {
   const day = date.getDay();
@@ -142,18 +186,40 @@ async function addEventToCalendar(userId, menuName, details) {
 
     let eventTitle = menuName;
     let eventDescription = `顧客ID: ${userId}\n`;
+    let basePrice;
 
     if (menu.type === 'wash') {
       const durationMinutes = menu.duration[details.size];
       endTime = new Date(startTime.getTime() + durationMinutes * 60000);
       eventTitle += ` (${details.size})`;
-      eventDescription += `サイズ: ${details.size}\n価格: ¥${menu.prices[details.size].toLocaleString()}`;
+      basePrice = menu.prices[details.size];
+      eventDescription += `サイズ: ${details.size}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
     } else {
       // コーティングは施工期間全体（3日/5日/7日）をブロックする
       const patternDays = parsePatternDays(details.pattern);
       endTime = new Date(startTime.getTime() + patternDays * 24 * 60 * 60 * 1000);
-      eventDescription += `パターン: ${details.pattern}\n価格: ¥${menu.basePrice.toLocaleString()}`;
+      basePrice = menu.basePrice;
+      eventDescription += `サイズ: ${details.size}\nパターン: ${details.pattern}\n本体価格: ¥${basePrice.toLocaleString()}\n`;
     }
+
+    const options = details.options || [];
+    let optionsTotal = 0;
+    let hasQuoteOption = false;
+    if (options.length > 0) {
+      eventDescription += `\n【オプション】\n`;
+      options.forEach(o => {
+        if (o.price === null) {
+          hasQuoteOption = true;
+          eventDescription += `・${o.label}：応相談\n`;
+        } else {
+          optionsTotal += o.price;
+          eventDescription += `・${o.label}：¥${o.price.toLocaleString()}\n`;
+        }
+      });
+    }
+
+    const total = basePrice + optionsTotal;
+    eventDescription += `\n合計金額: ¥${total.toLocaleString()}${hasQuoteOption ? '（＋応相談オプション別途）' : ''}`;
 
     const event = {
       summary: eventTitle,
@@ -168,7 +234,7 @@ async function addEventToCalendar(userId, menuName, details) {
       resource: event
     });
 
-    return result.data;
+    return { ...result.data, total, hasQuoteOption };
   } catch (error) {
     console.error('Error adding event to calendar:', error);
     throw error;
@@ -427,6 +493,49 @@ function buildSizeFlex(menuName, menu) {
         ]
       },
       footer: buildFooter('サイズがご不明な場合はお気軽にお問い合わせください')
+    }
+  };
+}
+
+function buildCoatingSizeFlex(menuName) {
+  const sizeLabels = {
+    SS: '軽自動車',
+    S: 'コンパクトカー',
+    M: 'セダン・ミニバン',
+    L: 'ミニバン・SUV',
+    XL: '大型SUV・ミニバン',
+    XXL: '大型ミニバン・特大車'
+  };
+  const sizeButtons = Object.keys(sizeLabels).map(size => ({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: size, text: `size_${size}` },
+    contents: [
+      { type: 'text', text: `サイズ ${size}`, weight: 'bold', size: 'sm', color: BRAND.navy, flex: 2 },
+      { type: 'text', text: sizeLabels[size], size: 'xxs', color: BRAND.gray, flex: 3, gravity: 'center' }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'サイズ選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(null, menuName),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '車のサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...sizeButtons
+        ]
+      },
+      footer: buildFooter('オプション料金の算出に使用します')
     }
   };
 }
@@ -691,6 +800,191 @@ async function replyDateSelection(replyToken, menuName) {
   });
 }
 
+function formatYen(n) {
+  return `¥${n.toLocaleString()}`;
+}
+
+function buildOptionMenuFlex(userState) {
+  const bucket = getSizeBucket(userState.size);
+  const selected = userState.options || [];
+
+  const optionCard = (key, name, subtitle) => ({
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: name, text: `option_${key}` },
+    contents: [
+      { type: 'text', text: name, weight: 'bold', size: 'md', color: BRAND.navy, wrap: true },
+      { type: 'text', text: subtitle, size: 'xs', color: BRAND.gray, margin: 'xs', wrap: true }
+    ]
+  });
+
+  const cards = [
+    optionCard('window', OPTIONS.window.name, `${formatYen(OPTIONS.window.variants.front.price[bucket])}〜`),
+    optionCard('wheel', OPTIONS.wheel.name, `${formatYen(OPTIONS.wheel.priceTable[1]['15'])}〜（本数・サイズで変動）`),
+    optionCard('resin', OPTIONS.resin.name, `${formatYen(OPTIONS.resin.price[bucket])}`),
+    optionCard('interior', OPTIONS.interior.name, `${formatYen(OPTIONS.interior.price[bucket])}`),
+    optionCard('leather', OPTIONS.leather.name, `${formatYen(OPTIONS.leather.price[bucket])}`),
+    optionCard('polish', OPTIONS.polish.name, '応相談')
+  ];
+
+  const selectedSummary = selected.length > 0
+    ? [
+        { type: 'separator', margin: 'lg' },
+        { type: 'text', text: '選択中のオプション', weight: 'bold', size: 'sm', color: BRAND.navy, margin: 'lg' },
+        ...selected.map(o => ({
+          type: 'text',
+          text: `・${o.label}　${o.price === null ? '応相談' : formatYen(o.price)}`,
+          size: 'xs',
+          color: BRAND.gray,
+          margin: 'xs',
+          wrap: true
+        }))
+      ]
+    : [];
+
+  return {
+    type: 'flex',
+    altText: 'オプション選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('必要なオプションをお選びください（複数選択可）', 'オプション'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [...cards, ...selectedSummary]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'md',
+            backgroundColor: BRAND.navy,
+            cornerRadius: 'md',
+            action: { type: 'message', label: '次へ進む', text: 'option_done' },
+            contents: [
+              { type: 'text', text: selected.length > 0 ? '次へ進む（このオプションで確定）' : '次へ進む（オプションなし）', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
+function buildWindowVariantFlex(bucket) {
+  const buttons = Object.entries(OPTIONS.window.variants).map(([key, v]) => ({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: v.label, text: `window_${key}` },
+    contents: [
+      { type: 'text', text: v.label, size: 'sm', color: BRAND.navy, flex: 3, wrap: true, gravity: 'center' },
+      { type: 'text', text: formatYen(v.price[bucket]), size: 'sm', weight: 'bold', color: BRAND.goldDark, flex: 2, align: 'end', gravity: 'center' }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: '窓ガラスコーティングの範囲を選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(null, '窓ガラスコーティング'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '施工範囲をお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...buttons
+        ]
+      }
+    }
+  };
+}
+
+function buildWheelCountFlex() {
+  const buttons = [
+    { key: '1', label: '1本' },
+    { key: '4', label: '4本' }
+  ].map(o => ({
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: o.label, text: `wheel_${o.key}` },
+    contents: [
+      { type: 'text', text: o.label, weight: 'bold', size: 'md', color: BRAND.navy }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'ホイールコーティングの本数を選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(null, 'ホイールコーティング'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '施工する本数をお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...buttons
+        ]
+      }
+    }
+  };
+}
+
+function buildWheelInchFlex(count) {
+  const table = OPTIONS.wheel.priceTable[count];
+  const buttons = Object.entries(table).map(([inchKey, price]) => ({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'md',
+    paddingAll: 'md',
+    backgroundColor: BRAND.cream,
+    cornerRadius: 'md',
+    action: { type: 'message', label: OPTIONS.wheel.inchLabel[inchKey], text: `wheel_inch_${count}_${inchKey}` },
+    contents: [
+      { type: 'text', text: OPTIONS.wheel.inchLabel[inchKey], size: 'sm', color: BRAND.navy, flex: 3, gravity: 'center' },
+      { type: 'text', text: formatYen(price), size: 'sm', weight: 'bold', color: BRAND.goldDark, flex: 2, align: 'end', gravity: 'center' }
+    ]
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'ホイールサイズを選択',
+    contents: {
+      type: 'bubble',
+      header: buildHeader(`${count}本`, 'ホイールコーティング'),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: 'ホイールサイズをお選びください', weight: 'bold', size: 'md', color: BRAND.navy },
+          ...buttons
+        ]
+      }
+    }
+  };
+}
+
 // ==== メッセージハンドラ ====
 
 async function handleUserMessage(event) {
@@ -718,14 +1012,14 @@ async function handleUserMessage(event) {
 
     if (userMessage && Object.keys(MENUS).includes(userMessage)) {
       userState.selectedMenu = userMessage;
+      userState.options = [];
       const menu = MENUS[userMessage];
 
+      userState.step = 'select_size';
       if (menu.type === 'wash') {
-        userState.step = 'select_size';
         await client.replyMessage(event.replyToken, buildSizeFlex(userMessage, menu));
       } else {
-        userState.step = 'select_coating_pattern';
-        await client.replyMessage(event.replyToken, buildPatternFlex(userMessage, menu));
+        await client.replyMessage(event.replyToken, buildCoatingSizeFlex(userMessage));
       }
 
       userStates.set(userId, userState);
@@ -735,21 +1029,106 @@ async function handleUserMessage(event) {
     if (userState.step === 'select_size' && userMessage?.startsWith('size_')) {
       const size = userMessage.replace('size_', '').toUpperCase();
       userState.size = size;
-      userState.step = 'select_date';
       userStates.set(userId, userState);
 
-      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      const menu = MENUS[userState.selectedMenu];
+      if (menu.type === 'wash') {
+        userState.step = 'select_options';
+        userStates.set(userId, userState);
+        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+      } else {
+        userState.step = 'select_coating_pattern';
+        userStates.set(userId, userState);
+        await client.replyMessage(event.replyToken, buildPatternFlex(userState.selectedMenu, menu));
+      }
       return;
     }
 
     if (userState.step === 'select_coating_pattern' && userMessage?.startsWith('pattern_')) {
       const pattern = userMessage.replace('pattern_', '');
       userState.pattern = pattern;
-      userState.step = 'select_date';
+      userState.step = 'select_options';
       userStates.set(userId, userState);
 
-      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
       return;
+    }
+
+    if (userState.step === 'select_options') {
+      if (userMessage === 'option_done') {
+        userState.step = 'select_date';
+        userStates.set(userId, userState);
+        await replyDateSelection(event.replyToken, userState.selectedMenu);
+        return;
+      }
+
+      if (userMessage === 'option_window') {
+        userState.optionSubstep = 'window';
+        userStates.set(userId, userState);
+        await client.replyMessage(event.replyToken, buildWindowVariantFlex(getSizeBucket(userState.size)));
+        return;
+      }
+
+      if (userMessage === 'option_wheel') {
+        userState.optionSubstep = 'wheel_count';
+        userStates.set(userId, userState);
+        await client.replyMessage(event.replyToken, buildWheelCountFlex());
+        return;
+      }
+
+      if (['option_resin', 'option_interior', 'option_leather', 'option_polish'].includes(userMessage)) {
+        const bucket = getSizeBucket(userState.size);
+        const map = { option_resin: OPTIONS.resin, option_interior: OPTIONS.interior, option_leather: OPTIONS.leather, option_polish: OPTIONS.polish };
+        const opt = map[userMessage];
+        const price = opt.price === null ? null : opt.price[bucket];
+
+        userState.options = userState.options || [];
+        userState.options.push({ label: opt.name, price });
+        userStates.set(userId, userState);
+
+        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        return;
+      }
+
+      if (userState.optionSubstep === 'window' && userMessage?.startsWith('window_')) {
+        const variantKey = userMessage.replace('window_', '');
+        const variant = OPTIONS.window.variants[variantKey];
+        const bucket = getSizeBucket(userState.size);
+        const price = variant.price[bucket];
+
+        userState.options = userState.options || [];
+        userState.options.push({ label: `${OPTIONS.window.name}（${variant.label}）`, price });
+        userState.optionSubstep = null;
+        userStates.set(userId, userState);
+
+        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        return;
+      }
+
+      if (userState.optionSubstep === 'wheel_count' && (userMessage === 'wheel_1' || userMessage === 'wheel_4')) {
+        userState.wheelCount = userMessage === 'wheel_1' ? 1 : 4;
+        userState.optionSubstep = 'wheel_inch';
+        userStates.set(userId, userState);
+
+        await client.replyMessage(event.replyToken, buildWheelInchFlex(userState.wheelCount));
+        return;
+      }
+
+      if (userState.optionSubstep === 'wheel_inch' && userMessage?.startsWith('wheel_inch_')) {
+        const parts = userMessage.replace('wheel_inch_', '').split('_');
+        const count = parseInt(parts[0], 10);
+        const inchKey = parts[1];
+        const price = OPTIONS.wheel.priceTable[count][inchKey];
+
+        userState.options = userState.options || [];
+        userState.options.push({ label: `${OPTIONS.wheel.name}（${count}本・${OPTIONS.wheel.inchLabel[inchKey]}）`, price });
+        userState.optionSubstep = null;
+        userState.wheelCount = null;
+        userStates.set(userId, userState);
+
+        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        return;
+      }
     }
 
     if (userState.step === 'select_date' && userMessage?.startsWith('date_')) {
@@ -799,16 +1178,24 @@ async function handleUserMessage(event) {
       const bookingDetails = {
         dateTime: bookingDateTime,
         size: userState.size || 'N/A',
-        pattern: userState.pattern || 'N/A'
+        pattern: userState.pattern || 'N/A',
+        options: userState.options || []
       };
 
-      await addEventToCalendar(userId, userState.selectedMenu, bookingDetails);
+      const result = await addEventToCalendar(userId, userState.selectedMenu, bookingDetails);
 
       let confirmMessage = `✅ 予約確定\n\n`;
       confirmMessage += `メニュー: ${userState.selectedMenu}\n`;
       confirmMessage += userState.size !== 'N/A' && userState.size ? `サイズ: ${userState.size}\n` : '';
       confirmMessage += userState.pattern !== 'N/A' && userState.pattern ? `パターン: ${userState.pattern}\n` : '';
-      confirmMessage += `日時: ${bookingDateTime.toLocaleString('ja-JP')}\n`;
+      if (userState.options && userState.options.length > 0) {
+        confirmMessage += `\n【オプション】\n`;
+        userState.options.forEach(o => {
+          confirmMessage += `・${o.label}：${o.price === null ? '応相談' : `¥${o.price.toLocaleString()}`}\n`;
+        });
+      }
+      confirmMessage += `\n日時: ${bookingDateTime.toLocaleString('ja-JP')}\n`;
+      confirmMessage += `合計金額: ¥${result.total.toLocaleString()}${result.hasQuoteOption ? '（＋応相談オプション別途）' : ''}\n`;
       confirmMessage += `\nご予約ありがとうございます！`;
 
       await client.replyMessage(event.replyToken, {
