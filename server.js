@@ -278,7 +278,12 @@ async function addEventToCalendar(userId, menuName, details) {
       description: eventDescription,
       start: { dateTime: startTime.toISOString(), timeZone: 'Asia/Tokyo' },
       end: { dateTime: endTime.toISOString(), timeZone: 'Asia/Tokyo' },
-      reminders: { useDefault: true }
+      reminders: { useDefault: true },
+      extendedProperties: {
+        private: {
+          bookingType: menu.type // 'wash' または 'coating'
+        }
+      }
     };
 
     const result = await calendar.events.insert({
@@ -688,7 +693,8 @@ function getDateStatus(date, today, events) {
   });
 
   const blockedByCoating = overlapping.some(ev =>
-    ev.summary && (ev.summary.includes('COAT') || ev.summary.includes('SEALANT'))
+    ev.extendedProperties?.private?.bookingType === 'coating' ||
+    (ev.summary && (ev.summary.includes('COAT') || ev.summary.includes('SEALANT')))
   );
 
   if (blockedByCoating) return 'blocked';
