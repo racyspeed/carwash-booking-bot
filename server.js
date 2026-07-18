@@ -322,9 +322,9 @@ function buildHeader(subtitle, title, accentBg) {
     backgroundColor: bg,
     paddingAll: 'lg',
     contents: [
-      { type: 'text', text: "RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
-      { type: 'text', text: title, color: '#FFFFFF', weight: 'bold', size: 'xl', margin: 'sm' },
-      ...(subtitle ? [{ type: 'text', text: subtitle, color: '#C9CEDC', size: 'xs', margin: 'sm' }] : [])
+      { type: 'text', text: "🎌 RACY'SPEED", color: BRAND.gold, weight: 'bold', size: 'sm' },
+      { type: 'text', text: `【 ${title} 】`, color: '#FFFFFF', weight: 'bold', size: 'xl', margin: 'sm' },
+      ...(subtitle ? [{ type: 'text', text: `― ${subtitle} ―`, color: '#C9CEDC', size: 'xs', margin: 'sm' }] : [])
     ]
   };
 }
