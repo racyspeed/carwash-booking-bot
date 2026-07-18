@@ -45,8 +45,8 @@ const BRAND = {
   navy: '#0B1F3A',
   navyBg: '#EEF2F8',
   gold: '#C9A227',
-  goldDark: '#8A6D1D',
-  goldBg: '#FBF3E0',
+  goldDark: '#7A2048',
+  goldBg: '#F7E9EE',
   teal: '#146B64',
   tealBg: '#E7F3F1',
   cream: '#F7F5F0',
@@ -631,8 +631,15 @@ function getDateStatus(date, today, events) {
   return 'partial';
 }
 
-const STATUS_META = {
-  open: { label: '○', color: '#0B1F3A', bg: '#F7F5F0' },
+function getMenuTheme(menuName) {
+  const menu = MENUS[menuName];
+  if (menu && menu.type === 'coating') {
+    return { main: BRAND.goldDark, bg: BRAND.goldBg };
+  }
+  return { main: BRAND.navy, bg: BRAND.navyBg };
+}
+
+const STATUS_META_BASE = {
   partial: { label: '△', color: '#B5850C', bg: '#FBF1DC' },
   blocked: { label: '✕', color: '#B0B0B0', bg: '#EDEDED' },
   closed: { label: '休', color: '#B0B0B0', bg: '#EDEDED' },
@@ -640,9 +647,13 @@ const STATUS_META = {
   past: { label: '－', color: '#DADADA', bg: '#F5F5F5' }
 };
 
-function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
+function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, theme) {
   const weeks = getMonthMatrix(year, monthIndex);
   const monthLabel = `${year}年${monthIndex + 1}月`;
+  const STATUS_META = {
+    open: { label: '○', color: theme.main, bg: theme.bg },
+    ...STATUS_META_BASE
+  };
 
   const weekdayHeader = {
     type: 'box',
@@ -653,7 +664,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
       size: 'xxs',
       align: 'center',
       weight: 'bold',
-      color: (idx === 1 || idx === 2) ? BRAND.gray : BRAND.navy,
+      color: (idx === 1 || idx === 2) ? BRAND.gray : theme.main,
       flex: 1
     }))
   };
@@ -698,7 +709,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
             size: 'xs',
             align: 'center',
             weight: 'bold',
-            color: clickable ? BRAND.navy : BRAND.lightGray
+            color: clickable ? theme.main : BRAND.lightGray
           },
           { type: 'text', text: meta.label, size: 'xxs', align: 'center', color: meta.color, margin: 'xs' }
         ]
@@ -712,7 +723,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today) {
 
   return {
     type: 'bubble',
-    header: buildHeader(menuName, monthLabel),
+    header: buildHeader(menuName, monthLabel, theme.main),
     body: {
       type: 'box',
       layout: 'vertical',
@@ -736,7 +747,7 @@ function generateHourlySlots() {
   return slots;
 }
 
-function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
+function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents, theme) {
   const [y, m, d] = dateKeyStr.split('-').map(Number);
   const slots = generateHourlySlots();
 
@@ -756,11 +767,11 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
       layout: 'horizontal',
       margin: 'sm',
       paddingAll: 'sm',
-      backgroundColor: taken ? '#EDEDED' : BRAND.cream,
+      backgroundColor: taken ? '#EDEDED' : theme.bg,
       cornerRadius: 'md',
       contents: [
-        { type: 'text', text: time, size: 'sm', color: taken ? BRAND.lightGray : BRAND.navy, flex: 3, gravity: 'center' },
-        { type: 'text', text: taken ? '✕' : '○', size: 'md', weight: 'bold', color: taken ? BRAND.lightGray : BRAND.navy, flex: 1, align: 'end', gravity: 'center' }
+        { type: 'text', text: time, size: 'sm', color: taken ? BRAND.lightGray : theme.main, flex: 3, gravity: 'center' },
+        { type: 'text', text: taken ? '✕' : '○', size: 'md', weight: 'bold', color: taken ? BRAND.lightGray : theme.main, flex: 1, align: 'end', gravity: 'center' }
       ]
     };
     if (!taken) {
@@ -774,7 +785,7 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
     altText: '時間を選択',
     contents: {
       type: 'bubble',
-      header: buildHeader(menuName, `${m}/${d} のご希望時間`),
+      header: buildHeader(menuName, `${m}/${d} のご希望時間`, theme.main),
       body: {
         type: 'box',
         layout: 'vertical',
@@ -788,14 +799,15 @@ function buildTimeSelectionFlex(menuName, dateKeyStr, dayEvents) {
 
 async function replyDateSelection(replyToken, menuName) {
   const today = new Date();
+  const theme = getMenuTheme(menuName);
 
   const rangeStart = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
   const rangeEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59);
   const events = await getEventsInRange(rangeStart, rangeEnd);
 
-  const currentMonthBubble = buildMonthCalendarBubble(menuName, today.getFullYear(), today.getMonth(), events, today);
+  const currentMonthBubble = buildMonthCalendarBubble(menuName, today.getFullYear(), today.getMonth(), events, today, theme);
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today);
+  const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today, theme);
 
   await client.replyMessage(replyToken, {
     type: 'flex',
@@ -1149,7 +1161,7 @@ async function handleUserMessage(event) {
       const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
       const dayEvents = await getEventsInRange(dayStart, dayEnd);
 
-      await client.replyMessage(event.replyToken, buildTimeSelectionFlex(userState.selectedMenu, dateKeyStr, dayEvents));
+      await client.replyMessage(event.replyToken, buildTimeSelectionFlex(userState.selectedMenu, dateKeyStr, dayEvents, getMenuTheme(userState.selectedMenu)));
       return;
     }
 
