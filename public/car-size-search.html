@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>愛車サイズ早見表</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700;900&family=JetBrains+Mono:wght@600;700&display=swap');
+
+  :root{
+    --bg:#0f1218;
+    --panel:#171b23;
+    --panel-2:#1d232d;
+    --line:#2a3140;
+    --text:#eef0f4;
+    --text-dim:#8891a3;
+    --accent:#e6b566;
+    --accent-soft:#e6b56622;
+    --accent-deep:#e6b566;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Noto Serif JP',serif;
+    line-height:1.8;
+    -webkit-font-smoothing:antialiased;
+    word-break:keep-all;
+    overflow-wrap:break-word;
+  }
+  .page{max-width:900px;margin:0 auto;padding:56px 24px 40px;}
+
+  /* ---------- HERO ---------- */
+  .hero{text-align:center;padding-bottom:36px;}
+  .brand{
+    font-size:14px;
+    letter-spacing:.3em;
+    color:var(--text-dim);
+    margin-bottom:22px;
+    font-weight:600;
+  }
+  .divider-label{
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    margin-bottom:20px;
+  }
+  .divider-label .line{width:44px;height:1px;background:var(--accent);}
+  .divider-label span{
+    font-size:11.5px;
+    letter-spacing:.24em;
+    color:var(--accent-deep);
+    font-weight:600;
+    white-space:nowrap;
+  }
+  h1{
+    font-weight:700;
+    font-size:clamp(26px,4.6vw,38px);
+    line-height:1.55;
+    margin:0 0 18px;
+    letter-spacing:.02em;
+  }
+  .lead{
+    color:var(--text-dim);
+    font-size:14.5px;
+    max-width:440px;
+    margin:0 auto 36px;
+  }
+
+  /* ---------- SEARCH PANEL ---------- */
+  .search-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:0;
+    padding:32px;
+    display:grid;
+    grid-template-columns:1.15fr 1fr;
+    gap:36px;
+    margin-bottom:14px;
+  }
+  .panel-col-label{
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--text);
+    margin-bottom:12px;
+  }
+  .search-wrap{position:relative;margin-bottom:26px;}
+  #search{
+    width:100%;
+    padding:15px 18px;
+    font-size:15px;
+    font-family:'Noto Serif JP',serif;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:0;
+    color:var(--text);
+    outline:none;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  #search::placeholder{color:#5b6272;font-size:13.5px;}
+  #search:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .suggestions{
+    position:absolute;
+    left:0;right:0;top:calc(100% + 8px);
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:0;
+    overflow:hidden;
+    text-align:left;
+    z-index:10;
+    display:none;
+    box-shadow:0 8px 24px rgba(0,0,0,.3);
+  }
+  .suggestions.show{display:block;}
+  .sugg-item{
+    padding:12px 16px;
+    cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .sugg-item:last-child{border-bottom:none;}
+  .sugg-item:hover{background:var(--panel-2);}
+  .sugg-maker{color:var(--text-dim);font-size:11.5px;}
+  .sugg-badge{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    color:var(--accent-deep);
+    font-size:12px;
+    margin-left:10px;
+  }
+
+  .select-wrap{margin-bottom:16px;}
+  select{
+    width:100%;
+    padding:14px 16px;
+    font-size:14.5px;
+    font-family:'Noto Serif JP',serif;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:0;
+    color:var(--text);
+    outline:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%238891a3'><path d='M5 7l5 5 5-5z'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    cursor:pointer;
+  }
+  select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+
+  @media (max-width:680px){
+    .search-panel{grid-template-columns:1fr;}
+  }
+
+  /* ---------- RESULT ---------- */
+  .result{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:0;
+    padding:30px 30px;
+    margin:20px 0 44px;
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .result.show{opacity:1;transform:translateY(0);}
+  .result.hidden{display:none;}
+
+  .result-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+  .result-maker{color:var(--text-dim);font-size:12.5px;margin-bottom:3px;}
+  .result-name{font-weight:700;font-size:22px;}
+  .result-size{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:24px;
+    color:var(--bg);
+    background:var(--accent);
+    padding:6px 20px;
+    border-radius:0;
+    white-space:nowrap;
+  }
+  .result-note{color:var(--text-dim);font-size:13px;margin-top:8px;}
+  .not-found{color:var(--text-dim);font-size:14px;}
+  .not-found b{color:var(--text);}
+
+  /* ---------- SCALE ---------- */
+  .scale-section{margin-bottom:26px;}
+  .scale-strip{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:0;
+    padding:24px 20px 16px;
+    gap:6px;
+  }
+  .scale-item{
+    display:flex;flex-direction:column;align-items:center;flex:1;
+    color:#cfc3a0;
+    transition:color .3s ease, filter .3s ease;
+  }
+  .scale-item svg{display:block;transition:transform .3s ease;}
+  .scale-item .label{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;font-size:12.5px;margin-top:9px;
+  }
+  .scale-item .desc{font-size:10px;color:var(--text-dim);margin-top:2px;text-align:center;}
+  .scale-item.match{color:var(--accent-deep);}
+  .scale-item.match .label{color:var(--accent-deep);}
+  .scale-item.match svg{filter:drop-shadow(0 0 8px var(--accent-soft));}
+
+  /* ---------- SIZE GUIDE ACCORDION ---------- */
+  .guide{margin-bottom:20px;}
+  #toggleGuide{
+    width:100%;text-align:left;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:16px 20px;border-radius:0;
+    font-size:14px;font-family:'Noto Serif JP',serif;font-weight:600;
+    cursor:pointer;display:flex;justify-content:space-between;
+  }
+  #toggleGuide:hover{border-color:var(--accent);}
+  .guide-body{margin-top:14px;}
+  .guide-body.hidden{display:none;}
+  .guide-intro{color:var(--text-dim);font-size:12.5px;margin-bottom:16px;}
+  .guide-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  }
+  .guide-card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:0;padding:18px 18px 14px;
+  }
+  .guide-card h3{
+    margin:0 0 10px;font-size:15px;font-weight:700;
+    display:flex;align-items:center;gap:8px;
+  }
+  .guide-card h3 .code{
+    font-family:'JetBrains Mono',monospace;color:var(--accent-deep);
+  }
+  .guide-card ul{margin:0;padding:0;list-style:none;}
+  .guide-card li{
+    font-size:12.5px;color:var(--text-dim);padding:4px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .guide-card li:last-child{border-bottom:none;}
+  @media (max-width:680px){ .guide-grid{grid-template-columns:1fr 1fr;} }
+
+  footer{
+    color:var(--text-dim);font-size:12px;text-align:center;
+    border-top:1px solid var(--line);padding-top:22px;
+  }
+
+  @media (max-width:480px){
+    .page{padding:38px 16px 32px;}
+    .scale-strip{padding:18px 8px 12px;}
+    .scale-item .desc{display:none;}
+    .result-top{flex-direction:column;}
+    .search-panel{padding:22px;}
+    .guide-grid{grid-template-columns:1fr;}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="brand">RACY'SPEED</div>
+    <div class="divider-label"><span class="line"></span><span>CAR SIZE CHECK</span><span class="line"></span></div>
+    <h1>愛車のサイズ、<br>今すぐわかります。</h1>
+    <p class="lead">車種名を入力すると、コーティング料金の基準になる<br>車両サイズ（SS〜XXL）が分かります。</p>
+  </div>
+
+  <div class="search-panel">
+    <div>
+      <div class="panel-col-label">車種名で検索</div>
+      <div class="search-wrap">
+        <input id="search" type="text" placeholder="例：プリウス、アルファード、BMW X3、ベンツ" autocomplete="off">
+        <div id="suggestions" class="suggestions"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-col-label">またはメーカーから選択</div>
+      <div class="select-wrap">
+        <select id="makerSelect"><option value="">メーカーを選択</option></select>
+      </div>
+      <div class="select-wrap">
+        <select id="modelSelect" disabled><option value="">車種を選択</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div id="result" class="result hidden"></div>
+
+  <div class="scale-section">
+    <div class="scale-strip" id="scaleStrip"></div>
+  </div>
+
+  <div class="guide">
+    <button id="toggleGuide">▼ サイズ区分の目安を見る<span id="guideArrow"></span></button>
+    <div id="guideBody" class="guide-body hidden"></div>
+  </div>
+
+  <footer>
+    表示されるサイズはキーパー基準（車両体積）に準拠した目安です。<br>年式・グレードにより異なる場合がございますので、正式なサイズは来店時にご確認ください。
+  </footer>
+</div>
+
+<script>
+/* ===================== データ ===================== */
+const CARS = [
+  // ---- レクサス ----
+  {name:"CT", maker:"レクサス", size:"M"},
+  {name:"ES", maker:"レクサス", size:"L"},
+  {name:"GS", maker:"レクサス", size:"L"},
+  {name:"GX", maker:"レクサス", size:"XXL"},
+  {name:"HS", maker:"レクサス", size:"L"},
+  {name:"IS", maker:"レクサス", size:"M"},
+  {name:"IS (2020/10〜)", maker:"レクサス", size:"L"},
+  {name:"LBX", maker:"レクサス", size:"M"},
+  {name:"LC", maker:"レクサス", size:"L"},
+  {name:"LF-A", maker:"レクサス", size:"S"},
+  {name:"LM", maker:"レクサス", size:"XXL"},
+  {name:"LS", maker:"レクサス", size:"XL"},
+  {name:"LX", maker:"レクサス", size:"XXL"},
+  {name:"NX", maker:"レクサス", size:"XL"},
+  {name:"RC", maker:"レクサス", size:"M"},
+  {name:"RX", maker:"レクサス", size:"XL"},
+  {name:"RZ", maker:"レクサス", size:"XL"},
+  {name:"SC", maker:"レクサス", size:"M"},
+  {name:"UX", maker:"レクサス", size:"L"},
+  // ---- トヨタ ----
+  {name:"86", maker:"トヨタ", size:"S"},
+  {name:"bZ4X", maker:"トヨタ", size:"XL"},
+  {name:"C-HR", maker:"トヨタ", size:"M"},
+  {name:"FJクルーザー", maker:"トヨタ", size:"XL"},
+  {name:"GRカローラ", maker:"トヨタ", size:"M"},
+  {name:"MR2", maker:"トヨタ", size:"S"},
+  {name:"RAV4(2005/11〜2016/7)", maker:"トヨタ", size:"L"},
+  {name:"RAV4(2019/4〜)", maker:"トヨタ", size:"XL"},
+  {name:"アイシス", maker:"トヨタ", size:"L"},
+  {name:"アクア/クロスオーバー", maker:"トヨタ", size:"S"},
+  {name:"アリオン", maker:"トヨタ", size:"M"},
+  {name:"アリスト", maker:"トヨタ", size:"L"},
+  {name:"アルテッツァ", maker:"トヨタ", size:"M"},
+  {name:"アルファード", maker:"トヨタ", size:"XL"},
+  {name:"ヴァンガード", maker:"トヨタ", size:"L"},
+  {name:"ウィッシュ", maker:"トヨタ", size:"L"},
+  {name:"ヴィッツ", maker:"トヨタ", size:"S"},
+  {name:"ヴェルファイア", maker:"トヨタ", size:"XL"},
+  {name:"エスクァイア", maker:"トヨタ", size:"XL"},
+  {name:"エスティマ", maker:"トヨタ", size:"XL"},
+  {name:"オーリス", maker:"トヨタ", size:"M"},
+  {name:"カムリ", maker:"トヨタ", size:"L"},
+  {name:"カローラアクシオ", maker:"トヨタ", size:"M"},
+  {name:"カローラクロス", maker:"トヨタ", size:"L"},
+  {name:"カローラスパシオ", maker:"トヨタ", size:"M"},
+  {name:"カローラスポーツ/カローラツーリング", maker:"トヨタ", size:"M"},
+  {name:"カローラセダン", maker:"トヨタ", size:"M"},
+  {name:"カローラフィールダー", maker:"トヨタ", size:"M"},
+  {name:"カローラランクス", maker:"トヨタ", size:"S"},
+  {name:"カローラルミオン", maker:"トヨタ", size:"M"},
+  {name:"クラウン", maker:"トヨタ", size:"L"},
+  {name:"クラウンエステート", maker:"トヨタ", size:"XL"},
+  {name:"クラウンクロスオーバー", maker:"トヨタ", size:"L"},
+  {name:"クラウンスポーツ", maker:"トヨタ", size:"L"},
+  {name:"クラウンマジェスタ", maker:"トヨタ", size:"L"},
+  {name:"グランエース", maker:"トヨタ", size:"XXL"},
+  {name:"グランドハイエース", maker:"トヨタ", size:"XL"},
+  {name:"クルーガー", maker:"トヨタ", size:"XL"},
+  {name:"サイ", maker:"トヨタ", size:"M"},
+  {name:"サクシード/プロボックス", maker:"トヨタ", size:"M"},
+  {name:"シエンタ", maker:"トヨタ", size:"M"},
+  {name:"シエンタ(2022.8〜)", maker:"トヨタ", size:"L"},
+  {name:"スープラ", maker:"トヨタ", size:"M"},
+  {name:"スペイド", maker:"トヨタ", size:"M"},
+  {name:"セルシオ", maker:"トヨタ", size:"L"},
+  {name:"センチュリーSUV", maker:"トヨタ", size:"XXL"},
+  {name:"センチュリーセダン", maker:"トヨタ", size:"XL"},
+  {name:"ソアラ", maker:"トヨタ", size:"M"},
+  {name:"タウンエースノア/ライトエースノア", maker:"トヨタ", size:"XL"},
+  {name:"タンク", maker:"トヨタ", size:"M"},
+  {name:"ノア / ヴォクシー", maker:"トヨタ", size:"XL"},
+  {name:"ハイエース / ハイエースレジアス", maker:"トヨタ", size:"XL"},
+  {name:"ハイエース ハイルーフ・スーパーロング", maker:"トヨタ", size:"XXL"},
+  {name:"ハイエース ワイド・ミドルルーフ", maker:"トヨタ", size:"XXL"},
+  {name:"ハイラックス", maker:"トヨタ", size:"XL"},
+  {name:"ハイラックスサーフ", maker:"トヨタ", size:"XL"},
+  {name:"パッソ", maker:"トヨタ", size:"S"},
+  {name:"ハリアー", maker:"トヨタ", size:"XL"},
+  {name:"ピクシスエポック", maker:"トヨタ", size:"SS"},
+  {name:"ピクシストラック", maker:"トヨタ", size:"SS"},
+  {name:"ピクシスバン", maker:"トヨタ", size:"S"},
+  {name:"プリウス", maker:"トヨタ", size:"M"},
+  {name:"プリウスα", maker:"トヨタ", size:"L"},
+  {name:"ポルテ", maker:"トヨタ", size:"M"},
+  {name:"マークII", maker:"トヨタ", size:"L"},
+  {name:"マークX", maker:"トヨタ", size:"M"},
+  {name:"マークX(2012/8~)", maker:"トヨタ", size:"L"},
+  {name:"マークXジオ", maker:"トヨタ", size:"L"},
+  {name:"ミライ", maker:"トヨタ", size:"L"},
+  {name:"ヤリス/GRヤリス", maker:"トヨタ", size:"S"},
+  {name:"ヤリスクロス", maker:"トヨタ", size:"M"},
+  {name:"ライズ", maker:"トヨタ", size:"M"},
+  {name:"ラクティス", maker:"トヨタ", size:"M"},
+  {name:"ランドクルーザー250", maker:"トヨタ", size:"XXL", aliases:["ランクル"]},
+  {name:"ランドクルーザー300", maker:"トヨタ", size:"XXL", aliases:["ランクル"]},
+  {name:"ランドクルーザー70", maker:"トヨタ", size:"XL", aliases:["ランクル"]},
+  {name:"ランドクルーザープラド", maker:"トヨタ", size:"XL", aliases:["ランクル","プラド"]},
+  {name:"ルーミー", maker:"トヨタ", size:"M"},
+  {name:"レジアスエース", maker:"トヨタ", size:"XL"},
+  // ---- 日産 ----
+  {name:"DAYS(デイズ)", maker:"日産", size:"SS"},
+  {name:"GT-R", maker:"日産", size:"M"},
+  {name:"GT-R(2016/7~)", maker:"日産", size:"L"},
+  {name:"NV100", maker:"日産", size:"S"},
+  {name:"NV200", maker:"日産", size:"L"},
+  {name:"アリア", maker:"日産", size:"XL"},
+  {name:"エクストレイル", maker:"日産", size:"XL"},
+  {name:"エルグランド", maker:"日産", size:"XL"},
+  {name:"キックス", maker:"日産", size:"M"},
+  {name:"キャラバン", maker:"日産", size:"XL"},
+  {name:"キャラバンスーパーロング", maker:"日産", size:"XXL"},
+  {name:"キューブ", maker:"日産", size:"M"},
+  {name:"クリッパーEV", maker:"日産", size:"S"},
+  {name:"クリッパートラック", maker:"日産", size:"SS"},
+  {name:"クリッパーバン", maker:"日産", size:"S"},
+  {name:"クリッパーリオ", maker:"日産", size:"S"},
+  {name:"グロリア / セドリック", maker:"日産", size:"L"},
+  {name:"サクラ", maker:"日産", size:"SS"},
+  {name:"シーマ", maker:"日産", size:"L"},
+  {name:"ジューク", maker:"日産", size:"M"},
+  {name:"シルビア", maker:"日産", size:"S"},
+  {name:"スカイライン", maker:"日産", size:"M"},
+  {name:"スカイライン(2014/2〜)", maker:"日産", size:"L"},
+  {name:"スカイラインGT-R", maker:"日産", size:"M"},
+  {name:"スカイラインクロスオーバー", maker:"日産", size:"L"},
+  {name:"セレナ", maker:"日産", size:"XL"},
+  {name:"ティアナ", maker:"日産", size:"L"},
+  {name:"ティーダ", maker:"日産", size:"M"},
+  {name:"デュアリス", maker:"日産", size:"L"},
+  {name:"ノート オーテック", maker:"日産", size:"M"},
+  {name:"ノート オーラ", maker:"日産", size:"M"},
+  {name:"ノート(2012/9~2020/11)", maker:"日産", size:"M"},
+  {name:"ノート(2020/12~)", maker:"日産", size:"S"},
+  {name:"フーガ", maker:"日産", size:"L"},
+  {name:"フェアレディZ", maker:"日産", size:"S"},
+  {name:"フェアレディZ ニスモ(2007/1~)", maker:"日産", size:"M"},
+  {name:"フェアレディZ(2022/4〜)", maker:"日産", size:"M"},
+  {name:"プレジデント", maker:"日産", size:"L"},
+  {name:"マーチ", maker:"日産", size:"S"},
+  {name:"ムラーノ", maker:"日産", size:"XL"},
+  {name:"モコ", maker:"日産", size:"SS"},
+  {name:"リーフ", maker:"日産", size:"L"},
+  {name:"ルークス", maker:"日産", size:"S"},
+  // ---- ホンダ ----
+  {name:"CR-V", maker:"ホンダ", size:"XL"},
+  {name:"CR-Z", maker:"ホンダ", size:"S"},
+  {name:"Honda e", maker:"ホンダ", size:"S"},
+  {name:"N-BOX", maker:"ホンダ", size:"S"},
+  {name:"N-BOX スラッシュ", maker:"ホンダ", size:"SS"},
+  {name:"N-ONE", maker:"ホンダ", size:"SS"},
+  {name:"N-VAN", maker:"ホンダ", size:"S"},
+  {name:"N-VAN e:", maker:"ホンダ", size:"S"},
+  {name:"N-WGN", maker:"ホンダ", size:"SS"},
+  {name:"NSX", maker:"ホンダ", size:"S"},
+  {name:"NSX(2017/2〜)", maker:"ホンダ", size:"M"},
+  {name:"S2000", maker:"ホンダ", size:"S"},
+  {name:"WR-V", maker:"ホンダ", size:"L"},
+  {name:"ZR-V", maker:"ホンダ", size:"L"},
+  {name:"アクティトラック", maker:"ホンダ", size:"SS"},
+  {name:"アコード", maker:"ホンダ", size:"L"},
+  {name:"インサイト", maker:"ホンダ", size:"M"},
+  {name:"インテグラ", maker:"ホンダ", size:"M"},
+  {name:"ヴェゼル", maker:"ホンダ", size:"L"},
+  {name:"エリシオン", maker:"ホンダ", size:"XL"},
+  {name:"オデッセイ", maker:"ホンダ", size:"L"},
+  {name:"オデッセイ(2013/11〜)", maker:"ホンダ", size:"XL"},
+  {name:"グレイス", maker:"ホンダ", size:"M"},
+  {name:"クロスロード", maker:"ホンダ", size:"L"},
+  {name:"ジェイド", maker:"ホンダ", size:"L"},
+  {name:"シビック", maker:"ホンダ", size:"M"},
+  {name:"シビックタイプR", maker:"ホンダ", size:"M"},
+  {name:"ステップワゴン", maker:"ホンダ", size:"XL"},
+  {name:"ストリーム", maker:"ホンダ", size:"M"},
+  {name:"ゼスト", maker:"ホンダ", size:"SS"},
+  {name:"バモス", maker:"ホンダ", size:"S"},
+  {name:"フィット(クロスター含む)", maker:"ホンダ", size:"S"},
+  {name:"フィットシャトル", maker:"ホンダ", size:"M"},
+  {name:"フリード", maker:"ホンダ", size:"L"},
+  {name:"ライフ", maker:"ホンダ", size:"SS"},
+  {name:"レジェンド", maker:"ホンダ", size:"L"},
+  // ---- 三菱 ----
+  {name:"ek", maker:"三菱", size:"SS"},
+  {name:"ekクロス", maker:"三菱", size:"SS"},
+  {name:"ekスペース", maker:"三菱", size:"S"},
+  {name:"RVR", maker:"三菱", size:"L"},
+  {name:"アウトランダー", maker:"三菱", size:"XL"},
+  {name:"エクリプスクロス", maker:"三菱", size:"L"},
+  {name:"ギャラン", maker:"三菱", size:"M"},
+  {name:"タウンボックス", maker:"三菱", size:"S"},
+  {name:"デリカ", maker:"三菱", size:"XL"},
+  {name:"デリカD:2", maker:"三菱", size:"M"},
+  {name:"デリカD:3", maker:"三菱", size:"L"},
+  {name:"デリカミニ", maker:"三菱", size:"S"},
+  {name:"トライトン", maker:"三菱", size:"XL"},
+  {name:"パジェロ", maker:"三菱", size:"XL"},
+  {name:"パジェロミニ", maker:"三菱", size:"SS"},
+  {name:"ミニキャブミーム", maker:"三菱", size:"S"},
+  {name:"ミニキャブトラック", maker:"三菱", size:"SS"},
+  {name:"ミラージュ", maker:"三菱", size:"S"},
+  {name:"ランサー", maker:"三菱", size:"M"},
+  // ---- マツダ ----
+  {name:"AZ-ワゴン", maker:"マツダ", size:"SS"},
+  {name:"CX-3", maker:"マツダ", size:"M"},
+  {name:"CX-30", maker:"マツダ", size:"M"},
+  {name:"CX-5", maker:"マツダ", size:"XL"},
+  {name:"CX-60", maker:"マツダ", size:"XL"},
+  {name:"CX-7", maker:"マツダ", size:"XL"},
+  {name:"CX-8", maker:"マツダ", size:"XL"},
+  {name:"CX-80", maker:"マツダ", size:"XL"},
+  {name:"MPV", maker:"マツダ", size:"XL"},
+  {name:"MX-30", maker:"マツダ", size:"L"},
+  {name:"RX-7", maker:"マツダ", size:"S"},
+  {name:"RX-8", maker:"マツダ", size:"M"},
+  {name:"アクセラ / マツダ3", maker:"マツダ", size:"M"},
+  {name:"アテンザ / マツダ6", maker:"マツダ", size:"L"},
+  {name:"キャロル", maker:"マツダ", size:"SS"},
+  {name:"スクラムトラック", maker:"マツダ", size:"SS"},
+  {name:"スクラムワゴン", maker:"マツダ", size:"S"},
+  {name:"デミオ / マツダ2", maker:"マツダ", size:"S"},
+  {name:"ファミリアバン", maker:"マツダ", size:"M"},
+  {name:"フレア", maker:"マツダ", size:"SS"},
+  {name:"フレアクロスオーバー", maker:"マツダ", size:"SS"},
+  {name:"フレアワゴン", maker:"マツダ", size:"S"},
+  {name:"ボンゴバン", maker:"マツダ", size:"L"},
+  {name:"ボンゴブローニイバン", maker:"マツダ", size:"XL"},
+  {name:"ロードスターNA/NB/ND", maker:"マツダ", size:"SS"},
+  {name:"ロードスターNC", maker:"マツダ", size:"S"},
+  // ---- スバル ----
+  {name:"BRZ", maker:"スバル", size:"S"},
+  {name:"WRX", maker:"スバル", size:"M"},
+  {name:"WRX S4", maker:"スバル", size:"L"},
+  {name:"XV", maker:"スバル", size:"L"},
+  {name:"インプレッサ", maker:"スバル", size:"M"},
+  {name:"エクシーガ", maker:"スバル", size:"L"},
+  {name:"クロスオーバー7", maker:"スバル", size:"XL"},
+  {name:"クロストレック", maker:"スバル", size:"L"},
+  {name:"サンバー", maker:"スバル", size:"S"},
+  {name:"サンバートラック", maker:"スバル", size:"SS"},
+  {name:"シフォン", maker:"スバル", size:"S"},
+  {name:"ジャスティ", maker:"スバル", size:"M"},
+  {name:"ステラ", maker:"スバル", size:"SS"},
+  {name:"ソルテラ", maker:"スバル", size:"XL"},
+  {name:"フォレスター", maker:"スバル", size:"L"},
+  {name:"フォレスター(2012/11~)", maker:"スバル", size:"XL"},
+  {name:"プレオプラス", maker:"スバル", size:"SS"},
+  {name:"レヴォーグ", maker:"スバル", size:"L"},
+  {name:"レヴォーグ レイバック", maker:"スバル", size:"L"},
+  {name:"レガシィB4/ツーリングワゴン", maker:"スバル", size:"M"},
+  {name:"レガシィB4/ツーリングワゴン(2009/5~)", maker:"スバル", size:"L"},
+  {name:"レガシィアウトバック", maker:"スバル", size:"L"},
+  {name:"レガシィアウトバック(2014/10〜)", maker:"スバル", size:"XL"},
+  {name:"レックス", maker:"スバル", size:"M"},
+  // ---- スズキ ----
+  {name:"eビターラ", maker:"スズキ", size:"L"},
+  {name:"SX4", maker:"スズキ", size:"M"},
+  {name:"X-BEE", maker:"スズキ", size:"M"},
+  {name:"アルト / ラパン", maker:"スズキ", size:"SS"},
+  {name:"イグニス", maker:"スズキ", size:"S"},
+  {name:"エスクード1.6", maker:"スズキ", size:"M"},
+  {name:"エスクード2.4", maker:"スズキ", size:"L"},
+  {name:"エブリイ", maker:"スズキ", size:"S"},
+  {name:"キザシ", maker:"スズキ", size:"L"},
+  {name:"キャリィ", maker:"スズキ", size:"SS"},
+  {name:"ジムニー", maker:"スズキ", size:"SS"},
+  {name:"ジムニー(2018/7~)", maker:"スズキ", size:"S"},
+  {name:"ジムニーノマド", maker:"スズキ", size:"M"},
+  {name:"ジムニーワイド/シエラ", maker:"スズキ", size:"S"},
+  {name:"スイフト", maker:"スズキ", size:"S"},
+  {name:"スーパーキャリィ", maker:"スズキ", size:"SS"},
+  {name:"スペーシア", maker:"スズキ", size:"S"},
+  {name:"スペーシアベース", maker:"スズキ", size:"S"},
+  {name:"ソリオ", maker:"スズキ", size:"M"},
+  {name:"ハスラー", maker:"スズキ", size:"SS"},
+  {name:"バレーノ", maker:"スズキ", size:"S"},
+  {name:"フロンクス", maker:"スズキ", size:"M"},
+  {name:"ランディ", maker:"スズキ", size:"XL"},
+  {name:"ワゴンR/スマイル", maker:"スズキ", size:"SS"},
+  {name:"ワゴンRワイド/ソリオ/プラス", maker:"スズキ", size:"S"},
+  // ---- ダイハツ ----
+  {name:"WAKE", maker:"ダイハツ", size:"S"},
+  {name:"アトレー", maker:"ダイハツ", size:"S"},
+  {name:"キャスト", maker:"ダイハツ", size:"SS"},
+  {name:"グランマックス", maker:"ダイハツ", size:"L"},
+  {name:"コペン", maker:"ダイハツ", size:"SS"},
+  {name:"タフト", maker:"ダイハツ", size:"SS"},
+  {name:"タント", maker:"ダイハツ", size:"S"},
+  {name:"トール", maker:"ダイハツ", size:"M"},
+  {name:"トコット", maker:"ダイハツ", size:"SS"},
+  {name:"ハイゼット", maker:"ダイハツ", size:"S"},
+  {name:"ハイゼットカーゴ", maker:"ダイハツ", size:"M"},
+  {name:"ハイゼットトラック", maker:"ダイハツ", size:"SS"},
+  {name:"ブーン", maker:"ダイハツ", size:"S"},
+  {name:"ミラ", maker:"ダイハツ", size:"SS"},
+  {name:"ムーヴ", maker:"ダイハツ", size:"SS"},
+  {name:"ムーヴキャンバス", maker:"ダイハツ", size:"SS"},
+  {name:"ロッキー", maker:"ダイハツ", size:"M"},
+  // ---- BMW ----
+  {name:"1シリーズ", maker:"BMW", size:"M"},
+  {name:"2シリーズ", maker:"BMW", size:"M"},
+  {name:"2シリーズグランツアラー", maker:"BMW", size:"L"},
+  {name:"3シリーズ", maker:"BMW", size:"M"},
+  {name:"3シリーズ(2019/3~)", maker:"BMW", size:"L"},
+  {name:"3シリーズ/ツーリング", maker:"BMW", size:"L"},
+  {name:"3シリーズグランツーリスモ", maker:"BMW", size:"L"},
+  {name:"4シリーズ", maker:"BMW", size:"M"},
+  {name:"4シリーズ(2020/10~)", maker:"BMW", size:"L"},
+  {name:"4シリーズ グランクーペ", maker:"BMW", size:"L"},
+  {name:"5シリーズ", maker:"BMW", size:"L"},
+  {name:"5シリーズグランツーリスモ", maker:"BMW", size:"XL"},
+  {name:"6シリーズ", maker:"BMW", size:"L"},
+  {name:"7シリーズ", maker:"BMW", size:"XL"},
+  {name:"8シリーズ", maker:"BMW", size:"L"},
+  {name:"i3", maker:"BMW", size:"M"},
+  {name:"i8", maker:"BMW", size:"M"},
+  {name:"iX", maker:"BMW", size:"XL"},
+  {name:"iX1", maker:"BMW", size:"L"},
+  {name:"MINI", maker:"BMW", size:"S"},
+  {name:"MINIクーパー/クーペ", maker:"BMW", size:"S"},
+  {name:"MINIクラブマン", maker:"BMW", size:"M"},
+  {name:"MINIクロスオーバー", maker:"BMW", size:"M"},
+  {name:"MINIぺースマン", maker:"BMW", size:"M"},
+  {name:"X1", maker:"BMW", size:"L"},
+  {name:"X2", maker:"BMW", size:"L"},
+  {name:"X3", maker:"BMW", size:"XL"},
+  {name:"X4", maker:"BMW", size:"XL"},
+  {name:"X5", maker:"BMW", size:"XL"},
+  {name:"X6", maker:"BMW", size:"XL"},
+  {name:"X7", maker:"BMW", size:"XXL"},
+  {name:"XM", maker:"BMW", size:"XL"},
+  {name:"Z3/Z4", maker:"BMW", size:"S"},
+  {name:"Z8", maker:"BMW", size:"M"},
+  // ---- アウディ ----
+  {name:"A1/S1", maker:"アウディ", size:"S"},
+  {name:"A3/S3", maker:"アウディ", size:"M"},
+  {name:"A4/S4", maker:"アウディ", size:"L"},
+  {name:"A5/S5(スポーツバック含む)", maker:"アウディ", size:"M"},
+  {name:"A6/S6", maker:"アウディ", size:"L"},
+  {name:"A7/S7", maker:"アウディ", size:"L"},
+  {name:"A8/S8", maker:"アウディ", size:"XL"},
+  {name:"e-tron GT/RS e-tron GT", maker:"アウディ", size:"L"},
+  {name:"e-tron/ e-tronスポーツバック", maker:"アウディ", size:"XL"},
+  {name:"e-tronS/e-tronSスポーツバック", maker:"アウディ", size:"XL"},
+  {name:"Q2", maker:"アウディ", size:"M"},
+  {name:"Q3", maker:"アウディ", size:"L"},
+  {name:"Q4 e-tron/Q4スポーツバックe-tron", maker:"アウディ", size:"L"},
+  {name:"Q5", maker:"アウディ", size:"XL"},
+  {name:"Q7", maker:"アウディ", size:"XL"},
+  {name:"Q8", maker:"アウディ", size:"XL"},
+  {name:"R8", maker:"アウディ", size:"M"},
+  {name:"RS3", maker:"アウディ", size:"M"},
+  {name:"RS4", maker:"アウディ", size:"M"},
+  {name:"RS4アバント", maker:"アウディ", size:"L"},
+  {name:"RS5", maker:"アウディ", size:"M"},
+  {name:"RS5スポーツバック", maker:"アウディ", size:"L"},
+  {name:"RS6", maker:"アウディ", size:"L"},
+  {name:"RS6アバント", maker:"アウディ", size:"XL"},
+  {name:"RS7", maker:"アウディ", size:"L"},
+  {name:"TT", maker:"アウディ", size:"M"},
+  // ---- フォルクスワーゲン ----
+  {name:"ID.4", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ID.5", maker:"フォルクスワーゲン", size:"L"},
+  {name:"UP!", maker:"フォルクスワーゲン", size:"S"},
+  {name:"アルテオン", maker:"フォルクスワーゲン", size:"L"},
+  {name:"クロスゴルフ", maker:"フォルクスワーゲン", size:"L"},
+  {name:"クロスポロ", maker:"フォルクスワーゲン", size:"S"},
+  {name:"ゴルフ", maker:"フォルクスワーゲン", size:"M"},
+  {name:"ゴルフヴァリアント", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ゴルフオールトラック", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ゴルフトゥーラン", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ジェッタ", maker:"フォルクスワーゲン", size:"M"},
+  {name:"シャラン", maker:"フォルクスワーゲン", size:"XL"},
+  {name:"シロッコ", maker:"フォルクスワーゲン", size:"M"},
+  {name:"ティークロス", maker:"フォルクスワーゲン", size:"M"},
+  {name:"ティーロック", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ティグアン", maker:"フォルクスワーゲン", size:"L"},
+  {name:"トゥアレグ", maker:"フォルクスワーゲン", size:"XL"},
+  {name:"ニュービートル/ザ ビートル", maker:"フォルクスワーゲン", size:"M"},
+  {name:"パサート", maker:"フォルクスワーゲン", size:"L"},
+  {name:"ビートル", maker:"フォルクスワーゲン", size:"S"},
+  {name:"ポロ", maker:"フォルクスワーゲン", size:"S"},
+  // ---- ポルシェ ----
+  {name:"911", maker:"ポルシェ", size:"M"},
+  {name:"カイエン", maker:"ポルシェ", size:"XL"},
+  {name:"ケイマン", maker:"ポルシェ", size:"S"},
+  {name:"タイカン", maker:"ポルシェ", size:"L"},
+  {name:"パナメーラ", maker:"ポルシェ", size:"L"},
+  {name:"ボクスター", maker:"ポルシェ", size:"S"},
+  {name:"マカン", maker:"ポルシェ", size:"XL"},
+  // ---- メルセデス・ベンツ ----
+  {name:"AMG GTクーペ", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"Aクラス", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"Bクラス", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"CLAクラス", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"CLAクラス(2019/8~)", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"CLEクーペ", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"CLKクラス", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"CLSクラス", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"CLクラス", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"Cクラスカブリオレ/クーペ", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"Cクラスセダン/ワゴン", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"Cクラスツーリング", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"EQA", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"EQB", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"EQC", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"EQE", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"EQS", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"EQS SUV", maker:"メルセデス・ベンツ", size:"XXL"},
+  {name:"EQV", maker:"メルセデス・ベンツ", size:"XXL"},
+  {name:"Eクラス220d", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"Eクラスカブリオレ/クーペ", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"Eクラスカブリオレ/クーペ(2017/5~)", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"Eクラスセダン/ワゴン", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"GLA(2020/6~)", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"GLAクラス", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"GLBクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"GLCクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"GLEクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"GLKクラス", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"GLSクラス", maker:"メルセデス・ベンツ", size:"XXL"},
+  {name:"GLクラス", maker:"メルセデス・ベンツ", size:"XXL"},
+  {name:"GT", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"Gクラス", maker:"メルセデス・ベンツ", size:"XXL"},
+  {name:"Mクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"Rクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"SLCクラス", maker:"メルセデス・ベンツ", size:"S"},
+  {name:"SLKクラス", maker:"メルセデス・ベンツ", size:"S"},
+  {name:"SLクラス", maker:"メルセデス・ベンツ", size:"M"},
+  {name:"Sクラス", maker:"メルセデス・ベンツ", size:"XL"},
+  {name:"Sクラスカブリオレ/クーペ", maker:"メルセデス・ベンツ", size:"L"},
+  {name:"Vクラス", maker:"メルセデス・ベンツ", size:"XXL"},
+  // ---- スマート ----
+  {name:"K/フォーツK", maker:"スマート", size:"SS"},
+  {name:"フォーツ", maker:"スマート", size:"SS"},
+  {name:"フォーフォー", maker:"スマート", size:"S"},
+  // ---- アルファロメオ ----
+  {name:"147", maker:"アルファロメオ", size:"M"},
+  {name:"159", maker:"アルファロメオ", size:"L"},
+  {name:"164", maker:"アルファロメオ", size:"M"},
+  {name:"166", maker:"アルファロメオ", size:"M"},
+  {name:"155/156", maker:"アルファロメオ", size:"M"},
+  {name:"4C", maker:"アルファロメオ", size:"S"},
+  {name:"GTV", maker:"アルファロメオ", size:"S"},
+  {name:"アルファGT", maker:"アルファロメオ", size:"M"},
+  {name:"ジュリア", maker:"アルファロメオ", size:"L"},
+  {name:"ジュリエッタ", maker:"アルファロメオ", size:"M"},
+  {name:"ステルビオ", maker:"アルファロメオ", size:"XL"},
+  {name:"スパイダー", maker:"アルファロメオ", size:"M"},
+  {name:"スポーツワゴン", maker:"アルファロメオ", size:"M"},
+  {name:"トナーレ", maker:"アルファロメオ", size:"L"},
+  {name:"ブレラ", maker:"アルファロメオ", size:"M"},
+  {name:"ミト", maker:"アルファロメオ", size:"S"},
+  // ---- フィアット ----
+  {name:"アバルト124スパイダー", maker:"フィアット", size:"S"},
+  {name:"クーペフィアット", maker:"フィアット", size:"S"},
+  {name:"パンダ", maker:"フィアット", size:"S"},
+  {name:"フィアット500/アバルト500", maker:"フィアット", size:"S"},
+  {name:"フィアット500X", maker:"フィアット", size:"L"},
+  {name:"フィアット600e", maker:"フィアット", size:"M"},
+  {name:"プント", maker:"フィアット", size:"S"},
+  // ---- ジャガー ----
+  {name:"Eペイス / iペイス", maker:"ジャガー", size:"L"},
+  {name:"Fタイプ", maker:"ジャガー", size:"M"},
+  {name:"Fペイス", maker:"ジャガー", size:"XL"},
+  {name:"Sタイプ", maker:"ジャガー", size:"L"},
+  {name:"XE", maker:"ジャガー", size:"M"},
+  {name:"XF", maker:"ジャガー", size:"L"},
+  {name:"XJ", maker:"ジャガー", size:"XL"},
+  {name:"XK", maker:"ジャガー", size:"M"},
+  {name:"Xタイプ", maker:"ジャガー", size:"M"},
+  // ---- ランドローバー ----
+  {name:"MINI", maker:"ランドローバー", size:"SS"},
+  {name:"イヴォーク", maker:"ランドローバー", size:"L"},
+  {name:"ディスカバリー", maker:"ランドローバー", size:"XL"},
+  {name:"ディスカバリー(2017/4~)", maker:"ランドローバー", size:"XXL"},
+  {name:"ディフェンダー110、130", maker:"ランドローバー", size:"XXL"},
+  {name:"ディフェンダー90", maker:"ランドローバー", size:"XL"},
+  {name:"フリーランダー", maker:"ランドローバー", size:"L"},
+  {name:"レンジローバー", maker:"ランドローバー", size:"XXL"},
+  {name:"レンジローバーヴェラール", maker:"ランドローバー", size:"XL"},
+  {name:"レンジローバースポーツ", maker:"ランドローバー", size:"XL"},
+  // ---- アストンマーティン ----
+  {name:"DB12", maker:"アストンマーティン", size:"M"},
+  {name:"DBX", maker:"アストンマーティン", size:"XL"},
+  {name:"ヴァンキッシュ", maker:"アストンマーティン", size:"L"},
+  {name:"ヴァンテージ", maker:"アストンマーティン", size:"M"},
+  // ---- ベントレー ----
+  {name:"コンチネンタルGT", maker:"ベントレー", size:"L"},
+  {name:"コンチネンタルフライングスパー", maker:"ベントレー", size:"XL"},
+  {name:"ターボR", maker:"ベントレー", size:"XL"},
+  {name:"ベンテイガ", maker:"ベントレー", size:"XL"},
+  // ---- キャデラック ----
+  {name:"ATS", maker:"キャデラック", size:"L"},
+  {name:"CT6", maker:"キャデラック", size:"XL"},
+  {name:"CTS/CT5", maker:"キャデラック", size:"L"},
+  {name:"SRX", maker:"キャデラック", size:"XL"},
+  {name:"STS", maker:"キャデラック", size:"L"},
+  {name:"XT-4", maker:"キャデラック", size:"L"},
+  {name:"XT-5", maker:"キャデラック", size:"XL"},
+  {name:"XT-6", maker:"キャデラック", size:"XL"},
+  {name:"XT-S", maker:"キャデラック", size:"XL"},
+  {name:"エスカレード", maker:"キャデラック", size:"XXL"},
+  // ---- シボレー ----
+  {name:"MW", maker:"シボレー", size:"S"},
+  {name:"アストロ", maker:"シボレー", size:"XXL"},
+  {name:"エクスプレス", maker:"シボレー", size:"XXL"},
+  {name:"カマロ", maker:"シボレー", size:"L"},
+  {name:"クルーズ", maker:"シボレー", size:"S"},
+  {name:"コルベット", maker:"シボレー", size:"M"},
+  {name:"シルバラード", maker:"シボレー", size:"XXL"},
+  {name:"タホ", maker:"シボレー", size:"XXL"},
+  {name:"トレイルブレイザー", maker:"シボレー", size:"XL"},
+  // ---- クライスラー ----
+  {name:"300C", maker:"クライスラー", size:"XL"},
+  {name:"300M", maker:"クライスラー", size:"L"},
+  {name:"PTクルーザー", maker:"クライスラー", size:"L"},
+  // ---- ジープ ----
+  {name:"アベンジャー", maker:"ジープ", size:"M"},
+  {name:"グランドチェロキー", maker:"ジープ", size:"XL"},
+  {name:"コマンダー", maker:"ジープ", size:"XL"},
+  {name:"コンパス", maker:"ジープ", size:"L"},
+  {name:"チェロキー", maker:"ジープ", size:"XL"},
+  {name:"パトリオット", maker:"ジープ", size:"L"},
+  {name:"ラングラー", maker:"ジープ", size:"XL"},
+  {name:"レネゲード", maker:"ジープ", size:"L"},
+  // ---- フォード ----
+  {name:"エクスプローラー", maker:"フォード", size:"XXL"},
+  {name:"エスケープ", maker:"フォード", size:"XL"},
+  {name:"フィエスタ", maker:"フォード", size:"S"},
+  {name:"フォーカス", maker:"フォード", size:"M"},
+  {name:"マスタング", maker:"フォード", size:"L"},
+  // ---- テスラ ----
+  {name:"テスラロードスター", maker:"テスラ", size:"SS"},
+  {name:"モデル3", maker:"テスラ", size:"L"},
+  {name:"モデルS", maker:"テスラ", size:"XL"},
+  {name:"モデルX", maker:"テスラ", size:"XL"},
+  {name:"モデルY", maker:"テスラ", size:"XL"},
+  // ---- ボルボ ----
+  {name:"240", maker:"ボルボ", size:"M"},
+  {name:"940", maker:"ボルボ", size:"L"},
+  {name:"C30", maker:"ボルボ", size:"M"},
+  {name:"C40", maker:"ボルボ", size:"L"},
+  {name:"C70", maker:"ボルボ", size:"M"},
+  {name:"EX30", maker:"ボルボ", size:"M"},
+  {name:"EX40", maker:"ボルボ", size:"L"},
+  {name:"S40", maker:"ボルボ", size:"M"},
+  {name:"S60", maker:"ボルボ", size:"L"},
+  {name:"S70", maker:"ボルボ", size:"M"},
+  {name:"S80", maker:"ボルボ", size:"L"},
+  {name:"S90", maker:"ボルボ", size:"L"},
+  {name:"V40", maker:"ボルボ", size:"M"},
+  {name:"V50", maker:"ボルボ", size:"M"},
+  {name:"V60", maker:"ボルボ", size:"L"},
+  {name:"V70", maker:"ボルボ", size:"L"},
+  {name:"V90", maker:"ボルボ", size:"L"},
+  {name:"V90クロスカントリー", maker:"ボルボ", size:"XL"},
+  {name:"XC40", maker:"ボルボ", size:"L"},
+  {name:"XC60", maker:"ボルボ", size:"XL"},
+  {name:"XC70", maker:"ボルボ", size:"XL"},
+  {name:"XC90", maker:"ボルボ", size:"XL"},
+  // ---- シトロエン ----
+  {name:"C3", maker:"シトロエン", size:"S"},
+  {name:"C3エアクロスSUV", maker:"シトロエン", size:"M"},
+  {name:"C4 / C5クーペ", maker:"シトロエン", size:"M"},
+  {name:"C4ピカソ", maker:"シトロエン", size:"L"},
+  {name:"C5", maker:"シトロエン", size:"L"},
+  {name:"C5X", maker:"シトロエン", size:"L"},
+  {name:"C5エアクロスSUV", maker:"シトロエン", size:"XL"},
+  {name:"C6", maker:"シトロエン", size:"L"},
+  {name:"グランドピカソ", maker:"シトロエン", size:"XL"},
+  {name:"ベルランゴ", maker:"シトロエン", size:"XL"},
+  // ---- DSオートモビル ----
+  {name:"DS3", maker:"DSオートモビル", size:"S"},
+  {name:"DS4", maker:"DSオートモビル", size:"M"},
+  {name:"DS5", maker:"DSオートモビル", size:"L"},
+  {name:"DS7クロスバック", maker:"DSオートモビル", size:"XL"},
+  {name:"DS9", maker:"DSオートモビル", size:"L"},
+  // ---- プジョー ----
+  {name:"106", maker:"プジョー", size:"SS"},
+  {name:"206", maker:"プジョー", size:"S"},
+  {name:"207", maker:"プジョー", size:"S"},
+  {name:"208", maker:"プジョー", size:"S"},
+  {name:"306", maker:"プジョー", size:"S"},
+  {name:"308", maker:"プジョー", size:"M"},
+  {name:"405", maker:"プジョー", size:"M"},
+  {name:"407", maker:"プジョー", size:"L"},
+  {name:"408", maker:"プジョー", size:"L"},
+  {name:"508", maker:"プジョー", size:"L"},
+  {name:"605", maker:"プジョー", size:"M"},
+  {name:"607", maker:"プジョー", size:"L"},
+  {name:"1007", maker:"プジョー", size:"S"},
+  {name:"2008", maker:"プジョー", size:"M"},
+  {name:"3008", maker:"プジョー", size:"L"},
+  {name:"5008", maker:"プジョー", size:"XL"},
+  {name:"307SW / 307ブレーク", maker:"プジョー", size:"L"},
+  {name:"RCZ", maker:"プジョー", size:"M"},
+  {name:"SUV5008GT", maker:"プジョー", size:"XL"},
+  {name:"リフター", maker:"プジョー", size:"XL"},
+  // ---- ルノー ----
+  {name:"アルカナ", maker:"ルノー", size:"L"},
+  {name:"アルピーヌ", maker:"ルノー", size:"S"},
+  {name:"カングー", maker:"ルノー", size:"L"},
+  {name:"カングー(2009/9~)", maker:"ルノー", size:"XL"},
+  {name:"キャプチャー", maker:"ルノー", size:"M"},
+  {name:"トゥインゴ", maker:"ルノー", size:"S"},
+  {name:"メガーヌ", maker:"ルノー", size:"M"},
+  {name:"ラファール", maker:"ルノー", size:"XL"},
+  {name:"ルーテシア", maker:"ルノー", size:"S"},
+  // ---- BYD ----
+  {name:"ドルフィン", maker:"BYD", size:"M"},
+  {name:"シール", maker:"BYD", size:"L"},
+  {name:"シーライオン7", maker:"BYD", size:"XL"},
+  {name:"ATTO 3", maker:"BYD", size:"L"},
+  // ---- オペル ----
+  {name:"アストラ", maker:"オペル", size:"M"},
+  {name:"ヴィータ", maker:"オペル", size:"S"},
+  // ---- サーブ ----
+  {name:"9-3", maker:"サーブ", size:"L"},
+  // ---- ダッジ ----
+  {name:"チャージャー", maker:"ダッジ", size:"XL"},
+  {name:"チャレンジャー", maker:"ダッジ", size:"XL"},
+  {name:"ナイトロ", maker:"ダッジ", size:"XL"},
+  {name:"ラム", maker:"ダッジ", size:"XXL"},
+  // ---- ハマー ----
+  {name:"H2", maker:"ハマー", size:"XXL"},
+  {name:"H3", maker:"ハマー", size:"XL"},
+  // ---- ヒュンダイ ----
+  {name:"アイオニック5", maker:"ヒュンダイ", size:"XL"},
+  // ---- マセラティ ----
+  {name:"ギブリ", maker:"マセラティ", size:"XL"},
+  {name:"クワトロポルテ", maker:"マセラティ", size:"XL"},
+  {name:"レヴァンテ", maker:"マセラティ", size:"XL"},
+  // ---- リンカーン ----
+  {name:"ナビゲーター", maker:"リンカーン", size:"XXL"},
+  // ---- ロータス ----
+  {name:"エキシージ", maker:"ロータス", size:"SS"},
+  {name:"エリーゼ", maker:"ロータス", size:"SS"},
+  // ---- 光岡 ----
+  {name:"バディ", maker:"光岡", size:"XL"},
+  {name:"ビュート", maker:"光岡", size:"S"},
+  {name:"ロックスター", maker:"光岡", size:"S"},
+  // ---- マクラーレン ----
+  {name:"GT", maker:"マクラーレン", size:"M"},
+];
+
+const SIZE_ORDER = ["SS","S","M","L","XL","XXL"];
+const SIZE_DESC = {
+  SS:"軽・コンパクト", S:"小型", M:"中型", L:"大型", XL:"ミニバン・SUV", XXL:"大型ミニバン・SUV"
+};
+const SIZE_SCALE = {SS:0.6, S:0.7, M:0.82, L:0.94, XL:1.1, XXL:1.28};
+
+/* ===================== 車アイコン ===================== */
+const CAR_SHAPES = {
+  SS: {
+    body: "M25,40 Q25,44 29,44 L35,44 Q37,49 41,49 Q45,49 47,44 L73,44 Q75,49 79,49 Q83,49 85,44 L91,44 Q95,44 95,40 L95,29 Q95,23 88,21 L80,19 L72,13 Q69,11 63,11 L57,11 Q51,11 48,13 L40,19 L32,21 Q25,23 25,29 Z",
+    glass: "M40,20 L47,14 Q50,12 56,12 L64,12 Q70,12 74,14 L79,20 Z",
+    wheels: [[41,47],[79,47]], wheelR: 6,
+    roofHi: [57,63,11]
+  },
+  S: {
+    body: "M22,40 Q22,44 26,44 L32,44 Q34,50 38,50 Q42,50 44,44 L76,44 Q78,50 82,50 Q86,50 88,44 L94,44 Q98,44 98,40 L98,8 Q98,3 92,3 L38,3 L24,10 Q22,11 22,15 Z",
+    glass: "M33,16 L33,10 Q33,5 37,5 L89,5 Q93,5 93,9 L93,16 Z",
+    wheels: [[38,47],[82,47]], wheelR: 7,
+    roofHi: [38,92,3],
+    doorSeamX: 60
+  },
+  M: {
+    body: "M8,40 Q8,44 12,44 L18,44 Q20,50 26,50 Q32,50 34,44 L86,44 Q88,50 94,50 Q100,50 102,44 L108,44 Q112,44 112,40 L112,34 Q112,29 105,27 L94,24 L82,16 Q78,13 68,13 L50,13 Q44,13 40,16 L28,24 L17,27 Q8,29 8,34 Z",
+    glass: "M28,23 L40,15 Q44,12 50,12 L68,12 Q74,12 78,15 L90,23 Z",
+    wheels: [[26,47],[94,47]], wheelR: 7,
+    roofHi: [50,68,13]
+  },
+  L: {
+    body: "M8,40 Q8,44 12,44 L18,44 Q20,50 26,50 Q32,50 34,44 L88,44 Q90,50 94,50 Q98,50 100,44 L104,44 Q108,44 108,40 L106,16 Q106,10 98,10 L46,10 Q40,10 36,14 L24,23 L14,26 Q8,28 8,34 Z",
+    glass: "M31,22 L38,15 Q42,12 47,12 L92,12 Q96,13 97,17 L99,23 Z",
+    wheels: [[26,47],[94,47]], wheelR: 8,
+    roofHi: [46,98,10],
+    roofRail: true
+  },
+  XL: {
+    body: "M12,40 Q12,44 16,44 L24,44 Q26,50 32,50 Q38,50 40,44 L82,44 Q84,50 90,50 Q96,50 98,44 L104,44 Q108,44 108,40 L108,8 Q108,2 102,2 L28,2 L14,9 Q12,10 12,14 Z",
+    glass: "M18,14 L18,7 Q18,3 22,3 L100,3 Q104,3 104,7 L104,14 Z",
+    wheels: [[32,47],[90,47]], wheelR: 8.5,
+    roofHi: [28,102,2],
+    doorSeamX: 60
+  },
+  XXL: {
+    body: "M8,40 Q8,44 12,44 L20,44 Q22,50 28,50 Q34,50 36,44 L88,44 Q90,50 96,50 Q102,50 104,44 L112,44 Q116,44 116,40 L116,5 Q116,1 110,1 L22,1 L11,7 Q8,8 8,11 Z",
+    glass: "M14,17 L14,5 Q14,2 17,2 L36,2 Q39,2 39,5 L39,17 Z",
+    wheels: [[28,47],[96,47]], wheelR: 8.5,
+    roofHi: [22,110,1]
+  }
+};
+
+function carSVG(sizeCode, scale, isMatch){
+  const shape = CAR_SHAPES[sizeCode];
+  const w = Math.round(58*scale), h = Math.round(29*scale);
+  const bodyGradId = 'bg'+sizeCode, shineId = 'sh'+sizeCode, shadowId = 'sd'+sizeCode, sideId = 'sc'+sizeCode;
+  const bodyStops = isMatch
+    ? '<stop offset="0" stop-color="#f8dea3"/><stop offset="0.5" stop-color="#e6b566"/><stop offset="1" stop-color="#9c7038"/>'
+    : '<stop offset="0" stop-color="#626a7a"/><stop offset="0.5" stop-color="#3a3f4b"/><stop offset="1" stop-color="#1d212a"/>';
+  const hub = isMatch ? '#f0c778' : '#6b7280';
+  const roofHiColor = isMatch ? '#fff3d6' : '#aeb4c0';
+  const wheelsSvg = shape.wheels.map(([x,y])=>
+    `<circle cx="${x}" cy="${y}" r="${shape.wheelR}" fill="#101218"/>
+     <circle cx="${x}" cy="${y}" r="${(shape.wheelR*0.78).toFixed(1)}" fill="#22262f"/>
+     <circle cx="${x}" cy="${y}" r="${(shape.wheelR*0.4).toFixed(1)}" fill="${hub}"/>`
+  ).join('');
+  const extra = shape.roofRail
+    ? `<rect x="${shape.roofHi[0]+2}" y="${shape.roofHi[2]-1.8}" width="${shape.roofHi[1]-shape.roofHi[0]-4}" height="1.8" rx="0.9" fill="${hub}" opacity="0.85"/>`
+    : shape.doorSeamX
+      ? `<line x1="${shape.doorSeamX}" y1="${shape.roofHi[2]+6}" x2="${shape.doorSeamX}" y2="43" stroke="#0c0e12" stroke-width="1" opacity="0.35"/>`
+      : '';
+  const [hiX1,hiX2,hiY] = shape.roofHi;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 120 58" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="${bodyGradId}" x1="0" y1="0" x2="0" y2="1">${bodyStops}</linearGradient>
+      <linearGradient id="${sideId}" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+        <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+      </linearGradient>
+      <linearGradient id="${shineId}" x1="0" y1="0" x2="1" y2="0.85">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="0.46" stop-color="#ffffff" stop-opacity="0.62"/>
+        <stop offset="0.54" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="${shadowId}" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#000000" stop-opacity="0.45"/>
+        <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <ellipse cx="60" cy="52" rx="44" ry="4.5" fill="url(#${shadowId})"/>
+    <path d="${shape.body}" fill="url(#${bodyGradId})"/>
+    <path d="${shape.body}" fill="url(#${sideId})"/>
+    <path d="${shape.glass}" fill="#0f1116" opacity="0.6"/>
+    ${extra}
+    <line x1="${hiX1}" y1="${hiY-0.3}" x2="${hiX2}" y2="${hiY-0.3}" stroke="${roofHiColor}" stroke-width="1.1" opacity="0.65" stroke-linecap="round"/>
+    <path d="${shape.body}" fill="url(#${shineId})"/>
+    ${wheelsSvg}
+  </svg>`;
+}
+
+function renderScale(matchSize){
+  const strip = document.getElementById('scaleStrip');
+  strip.innerHTML = SIZE_ORDER.map(sz=>{
+    const isMatch = sz === matchSize;
+    return `<div class="scale-item ${isMatch?'match':''}">
+      ${carSVG(sz, SIZE_SCALE[sz], isMatch)}
+      <div class="label">${sz}</div>
+      <div class="desc">${SIZE_DESC[sz]}</div>
+    </div>`;
+  }).join('');
+}
+renderScale(null);
+
+/* ===================== 検索まわり ===================== */
+const searchInput = document.getElementById('search');
+const suggestionsEl = document.getElementById('suggestions');
+const resultEl = document.getElementById('result');
+
+function normalize(s){ return s.toLowerCase().replace(/\s/g,''); }
+
+function matchesQuery(c, nq){
+  if(normalize(c.name).includes(nq)) return true;
+  if(normalize(c.maker).includes(nq)) return true;
+  if(c.aliases && c.aliases.some(a=>normalize(a).includes(nq))) return true;
+  return false;
+}
+
+function search(q){
+  const nq = normalize(q);
+  if(!nq) return [];
+  return CARS.filter(c => matchesQuery(c, nq)).slice(0,7);
+}
+
+function showResult(car){
+  resultEl.classList.remove('hidden');
+  if(car){
+    resultEl.innerHTML = `
+      <div class="result-top">
+        <div>
+          <div class="result-maker">${car.maker}</div>
+          <div class="result-name">${car.name}</div>
+        </div>
+        <div class="result-size">${car.size}</div>
+      </div>
+      <div class="result-note">${SIZE_DESC[car.size]}クラスです。コーティング料金はこのサイズを基準にご案内します。</div>
+    `;
+    renderScale(car.size);
+  } else {
+    resultEl.innerHTML = `<div class="not-found">該当する車種が見つかりませんでした。お手数ですが<b>スタッフまでお尋ねください</b>。</div>`;
+    renderScale(null);
+  }
+  requestAnimationFrame(()=> resultEl.classList.add('show'));
+  resultEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim();
+  if(!q){
+    suggestionsEl.classList.remove('show');
+    return;
+  }
+  const matches = search(q);
+  if(matches.length){
+    suggestionsEl.innerHTML = matches.map(c=>
+      `<div class="sugg-item" data-name="${c.name}" data-maker="${c.maker}">
+        <span>${c.name} <span class="sugg-maker">/ ${c.maker}</span></span>
+        <span class="sugg-badge">${c.size}</span>
+      </div>`
+    ).join('');
+    suggestionsEl.classList.add('show');
+  } else {
+    suggestionsEl.innerHTML = `<div class="sugg-item">候補が見つかりません</div>`;
+    suggestionsEl.classList.add('show');
+  }
+});
+
+suggestionsEl.addEventListener('click', (e)=>{
+  const item = e.target.closest('.sugg-item');
+  if(!item || !item.dataset.name) return;
+  const car = CARS.find(c=>c.name === item.dataset.name && c.maker === item.dataset.maker);
+  searchInput.value = car.name;
+  suggestionsEl.classList.remove('show');
+  showResult(car);
+});
+
+searchInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    const q = searchInput.value.trim();
+    const matches = search(q);
+    if(matches.length) showResult(matches[0]);
+    else showResult(null);
+    suggestionsEl.classList.remove('show');
+  }
+});
+
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.search-wrap')) suggestionsEl.classList.remove('show');
+});
+
+/* ===================== メーカー/車種プルダウン ===================== */
+const makerSelect = document.getElementById('makerSelect');
+const modelSelect = document.getElementById('modelSelect');
+
+const makers = [...new Set(CARS.map(c=>c.maker))];
+makers.forEach(m=>{
+  const opt = document.createElement('option');
+  opt.value = m; opt.textContent = m;
+  makerSelect.appendChild(opt);
+});
+
+makerSelect.addEventListener('change', ()=>{
+  const maker = makerSelect.value;
+  modelSelect.innerHTML = '<option value="">車種を選択</option>';
+  if(!maker){ modelSelect.disabled = true; return; }
+  modelSelect.disabled = false;
+  CARS.filter(c=>c.maker===maker).forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.name; opt.textContent = c.name;
+    modelSelect.appendChild(opt);
+  });
+});
+
+modelSelect.addEventListener('change', ()=>{
+  const maker = makerSelect.value;
+  const name = modelSelect.value;
+  if(!name) return;
+  const car = CARS.find(c=>c.maker===maker && c.name===name);
+  if(car) showResult(car);
+});
+
+/* ===================== サイズ区分の目安 ===================== */
+const toggleGuideBtn = document.getElementById('toggleGuide');
+const guideBody = document.getElementById('guideBody');
+let guideBuilt = false;
+
+toggleGuideBtn.addEventListener('click', ()=>{
+  guideBody.classList.toggle('hidden');
+  if(!guideBuilt){ buildGuide(); guideBuilt = true; }
+});
+
+function buildGuide(){
+  const bySize = {};
+  SIZE_ORDER.forEach(sz=> bySize[sz] = []);
+  CARS.forEach(c=>{ if(bySize[c.size].length < 4) bySize[c.size].push(c.name); });
+
+  guideBody.innerHTML = `
+    <div class="guide-intro">車両サイズはお車の大きさをもとに、SS〜XXLで分類しています。実際のお車の状態や仕様により、店頭確認時に前後する場合があります。</div>
+    <div class="guide-grid">
+      ${SIZE_ORDER.map(sz=>`
+        <div class="guide-card">
+          <h3><span class="code">${sz}</span>サイズ<span style="font-size:11px;color:var(--text-dim);font-weight:400;">（${SIZE_DESC[sz]}）</span></h3>
+          <ul>${bySize[sz].map(n=>`<li>${n}</li>`).join('')}</ul>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
