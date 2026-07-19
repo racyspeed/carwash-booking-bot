@@ -2,6 +2,8 @@ const express = require('express');
 const crypto = require('crypto');
 const { google } = require('googleapis');
 const line = require('@line/bot-sdk');
+const { Pool } = require('pg');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const app = express();
@@ -185,6 +187,135 @@ function getSizeBucket(size) {
   return ['SS', 'S', 'M'].includes(size) ? 'SS~M' : 'L~XXL';
 }
 
+// ==== データベース(PostgreSQL) ====
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+async function initDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id SERIAL PRIMARY KEY,
+        line_user_id TEXT NOT NULL,
+        calendar_event_id TEXT,
+        menu_name TEXT NOT NULL,
+        size TEXT,
+        pattern TEXT,
+        options JSONB,
+        start_datetime TIMESTAMPTZ NOT NULL,
+        end_datetime TIMESTAMPTZ NOT NULL,
+        total_price INTEGER,
+        status TEXT NOT NULL DEFAULT 'confirmed',
+        reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(line_user_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_bookings_start ON bookings(start_datetime);`);
+    console.log('✅ データベース初期化完了');
+  } catch (error) {
+    console.error('データベース初期化エラー:', error);
+  }
+}
+
+async function saveBooking(userId, menuName, details, calendarEventId, totalPrice) {
+  try {
+    await pool.query(
+      `INSERT INTO bookings
+        (line_user_id, calendar_event_id, menu_name, size, pattern, options, start_datetime, end_datetime, total_price, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed')`,
+      [
+        userId,
+        calendarEventId,
+        menuName,
+        details.size || null,
+        details.pattern || null,
+        JSON.stringify(details.options || []),
+        details.dateTime,
+        details.endDateTime,
+        totalPrice
+      ]
+    );
+  } catch (error) {
+    console.error('予約保存エラー:', error);
+  }
+}
+
+async function getLastCompletedBooking(userId) {
+  try {
+    const res = await pool.query(
+      `SELECT * FROM bookings
+       WHERE line_user_id = $1 AND status = 'confirmed' AND start_datetime < NOW()
+       ORDER BY start_datetime DESC LIMIT 1`,
+      [userId]
+    );
+    return res.rows[0] || null;
+  } catch (error) {
+    console.error('前回予約取得エラー:', error);
+    return null;
+  }
+}
+
+async function getUpcomingBookings(userId) {
+  try {
+    const res = await pool.query(
+      `SELECT * FROM bookings
+       WHERE line_user_id = $1 AND status = 'confirmed' AND start_datetime >= NOW()
+       ORDER BY start_datetime ASC`,
+      [userId]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('今後の予約取得エラー:', error);
+    return [];
+  }
+}
+
+async function getBookingById(id) {
+  try {
+    const res = await pool.query(`SELECT * FROM bookings WHERE id = $1`, [id]);
+    return res.rows[0] || null;
+  } catch (error) {
+    console.error('予約取得エラー:', error);
+    return null;
+  }
+}
+
+async function cancelBookingInDb(id) {
+  try {
+    await pool.query(`UPDATE bookings SET status = 'cancelled' WHERE id = $1`, [id]);
+  } catch (error) {
+    console.error('予約キャンセル更新エラー:', error);
+  }
+}
+
+async function getBookingsForReminder() {
+  try {
+    const res = await pool.query(
+      `SELECT * FROM bookings
+       WHERE status = 'confirmed' AND reminder_sent = FALSE
+       AND start_datetime >= (NOW() AT TIME ZONE 'Asia/Tokyo')::date + INTERVAL '1 day'
+       AND start_datetime < (NOW() AT TIME ZONE 'Asia/Tokyo')::date + INTERVAL '2 day'`
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('リマインダー対象取得エラー:', error);
+    return [];
+  }
+}
+
+async function markReminderSent(id) {
+  try {
+    await pool.query(`UPDATE bookings SET reminder_sent = TRUE WHERE id = $1`, [id]);
+  } catch (error) {
+    console.error('リマインダー済みフラグ更新エラー:', error);
+  }
+}
+
+
 const userStates = new Map();
 
 function isBusinessOpen(date) {
@@ -291,7 +422,7 @@ async function addEventToCalendar(userId, menuName, details) {
       resource: event
     });
 
-    return { ...result.data, total, hasQuoteOption };
+    return { ...result.data, total, hasQuoteOption, endTime };
   } catch (error) {
     console.error('Error adding event to calendar:', error);
     throw error;
@@ -1295,6 +1426,49 @@ function buildWheelInchFlex(count) {
   };
 }
 
+function buildCancelListFlex(bookings) {
+  const bubbles = bookings.slice(0, 10).map(b => ({
+    type: 'bubble',
+    size: 'kilo',
+    header: buildHeader(null, b.menu_name, '#7A2048'),
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'md',
+      contents: [
+        { type: 'text', text: new Date(b.start_datetime).toLocaleString('ja-JP'), weight: 'bold', size: 'sm', wrap: true },
+        ...(b.size ? [{ type: 'text', text: `サイズ: ${b.size}`, size: 'xs', color: BRAND.gray, margin: 'xs' }] : []),
+        ...(b.pattern ? [{ type: 'text', text: `パターン: ${b.pattern}`, size: 'xs', color: BRAND.gray, margin: 'xs', wrap: true }] : [])
+      ]
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'sm',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: 'sm',
+          backgroundColor: '#7A2048',
+          cornerRadius: 'md',
+          action: { type: 'message', label: 'キャンセルする', text: `cancel_select_${b.id}` },
+          contents: [{ type: 'text', text: 'このご予約をキャンセル', color: '#FFFFFF', weight: 'bold', size: 'xs', align: 'center' }]
+        }
+      ]
+    }
+  }));
+
+  return {
+    type: 'flex',
+    altText: 'キャンセルするご予約を選択',
+    contents: {
+      type: 'carousel',
+      contents: bubbles
+    }
+  };
+}
+
 // ==== メッセージハンドラ ====
 
 async function handleUserMessage(event) {
@@ -1306,7 +1480,146 @@ async function handleUserMessage(event) {
     if (userMessage === '予約' || userMessage === 'メニュー') {
       userState = {};
       userStates.set(userId, userState);
+
+      const lastBooking = await getLastCompletedBooking(userId);
+      if (lastBooking) {
+        const lastDate = new Date(lastBooking.start_datetime).toLocaleDateString('ja-JP');
+        let lastInfo = `📋 前回のご利用（${lastDate}）\n${lastBooking.menu_name}`;
+        if (lastBooking.size) lastInfo += ` (${lastBooking.size})`;
+        if (lastBooking.pattern) lastInfo += `\nパターン: ${lastBooking.pattern}`;
+        await client.replyMessage(event.replyToken, [
+          { type: 'text', text: lastInfo },
+          buildCategoryFlex()
+        ]);
+        return;
+      }
+
       await client.replyMessage(event.replyToken, buildCategoryFlex());
+      return;
+    }
+
+    if (userMessage === 'キャンセル') {
+      const upcoming = await getUpcomingBookings(userId);
+      if (upcoming.length === 0) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '現在キャンセル可能なご予約はありません。'
+        });
+        return;
+      }
+      await client.replyMessage(event.replyToken, buildCancelListFlex(upcoming));
+      return;
+    }
+
+    if (userMessage?.startsWith('cancel_select_')) {
+      const bookingId = parseInt(userMessage.replace('cancel_select_', ''), 10);
+      const booking = await getBookingById(bookingId);
+
+      if (!booking || booking.status !== 'confirmed' || booking.line_user_id !== userId) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'このご予約は見つからないか、すでに処理済みです。'
+        });
+        return;
+      }
+
+      await client.replyMessage(event.replyToken, {
+        type: 'flex',
+        altText: 'キャンセルの確認',
+        contents: {
+          type: 'bubble',
+          header: buildHeader('よろしいですか？', 'キャンセル確認', '#7A2048'),
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'lg',
+            contents: [
+              { type: 'text', text: booking.menu_name, weight: 'bold', size: 'md', wrap: true },
+              { type: 'text', text: new Date(booking.start_datetime).toLocaleString('ja-JP'), size: 'sm', color: BRAND.gray, margin: 'sm' }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'sm',
+            paddingAll: 'md',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                paddingAll: 'sm',
+                backgroundColor: '#EDEDED',
+                cornerRadius: 'md',
+                action: { type: 'message', label: 'やめる', text: 'cancel_abort' },
+                contents: [{ type: 'text', text: 'やめる', align: 'center', size: 'sm', color: BRAND.gray }]
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                paddingAll: 'sm',
+                backgroundColor: '#7A2048',
+                cornerRadius: 'md',
+                action: { type: 'message', label: 'キャンセルする', text: `cancel_confirm_${bookingId}` },
+                contents: [{ type: 'text', text: 'キャンセルする', align: 'center', size: 'sm', color: '#FFFFFF', weight: 'bold' }]
+              }
+            ]
+          }
+        }
+      });
+      return;
+    }
+
+    if (userMessage?.startsWith('cancel_confirm_')) {
+      const bookingId = parseInt(userMessage.replace('cancel_confirm_', ''), 10);
+      const booking = await getBookingById(bookingId);
+
+      if (!booking || booking.status !== 'confirmed' || booking.line_user_id !== userId) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'このご予約は見つからないか、すでに処理済みです。'
+        });
+        return;
+      }
+
+      const diffDays = Math.floor((new Date(booking.start_datetime) - new Date()) / (24 * 60 * 60 * 1000));
+      if (diffDays < LEAD_DAYS) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '申し訳ございません。キャンセルは2日前までとなっております。お手数ですがお電話にてご連絡ください。'
+        });
+        return;
+      }
+
+      try {
+        if (booking.calendar_event_id) {
+          await calendar.events.delete({
+            calendarId: CALENDAR_ID,
+            eventId: booking.calendar_event_id
+          });
+        }
+        await cancelBookingInDb(bookingId);
+
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `✅ 以下のご予約をキャンセルしました。\n\n${booking.menu_name}\n日時: ${new Date(booking.start_datetime).toLocaleString('ja-JP')}\n\nまたのご利用をお待ちしております。`
+        });
+      } catch (error) {
+        console.error('キャンセル処理エラー:', error);
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'キャンセル処理に失敗しました。お手数ですが再度お試しいただくか、お電話にてご連絡ください。'
+        });
+      }
+      return;
+    }
+
+    if (userMessage === 'cancel_abort') {
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'キャンセルを取りやめました。'
+      });
       return;
     }
 
@@ -1502,6 +1815,14 @@ async function handleUserMessage(event) {
 
       const result = await addEventToCalendar(userId, userState.selectedMenu, bookingDetails);
 
+      await saveBooking(
+        userId,
+        userState.selectedMenu,
+        { ...bookingDetails, endDateTime: result.endTime },
+        result.id,
+        result.total
+      );
+
       const patternLabel = userState.pattern && MENUS[userState.selectedMenu].type === 'coating'
         ? MENUS[userState.selectedMenu].patterns[userState.pattern].label
         : userState.pattern;
@@ -1518,7 +1839,7 @@ async function handleUserMessage(event) {
       }
       confirmMessage += `\n日時: ${bookingDateTime.toLocaleString('ja-JP')}\n`;
       confirmMessage += `合計金額: ¥${result.total.toLocaleString()}${result.hasQuoteOption ? '（＋応相談オプション別途）' : ''}\n`;
-      confirmMessage += `\nご予約ありがとうございます！`;
+      confirmMessage += `\nご予約ありがとうございます！\n前日の夜にリマインドをお送りします。\nキャンセルは「キャンセル」と送信してください（2日前まで）。`;
 
       await client.replyMessage(event.replyToken, {
         type: 'text',
@@ -1579,9 +1900,36 @@ app.get('/', (req, res) => {
   res.json({ status: 'Running', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
+async function sendReminders() {
+  const bookings = await getBookingsForReminder();
+  for (const booking of bookings) {
+    try {
+      const dateStr = new Date(booking.start_datetime).toLocaleString('ja-JP', {
+        month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      let text = `🔔 明日のご予約のリマインドです\n\n${booking.menu_name}`;
+      if (booking.size) text += ` (${booking.size})`;
+      if (booking.pattern) text += `\nパターン: ${booking.pattern}`;
+      text += `\n日時: ${dateStr}\n\nご来店をお待ちしております。\nキャンセルの場合は「キャンセル」と送信してください。`;
+
+      await client.pushMessage(booking.line_user_id, { type: 'text', text });
+      await markReminderSent(booking.id);
+    } catch (error) {
+      console.error(`リマインダー送信エラー (booking id: ${booking.id}):`, error);
+    }
+  }
+}
+
+// 毎日19:00(Asia/Tokyo)に翌日の予約リマインダーを送信
+cron.schedule('0 19 * * *', () => {
+  console.log('⏰ リマインダー送信ジョブ実行');
+  sendReminders();
+}, { timezone: 'Asia/Tokyo' });
+
+app.listen(PORT, async () => {
   console.log(`🚀 LINE洗車予約ボット起動`);
   console.log(`📍 Webhook: https://web-production-7fc6d.up.railway.app/webhook`);
   console.log(`⏰ ポート: ${PORT}`);
   console.log(`📅 カレンダー: ${CALENDAR_ID}`);
+  await initDatabase();
 });
