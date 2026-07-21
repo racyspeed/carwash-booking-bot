@@ -17,6 +17,11 @@ const lineConfig = {
 
 const client = new line.Client(lineConfig);
 
+// notify=false(既定)の場合は通知なしで返信。予約確定など重要な通知だけ notify=true を渡す。
+async function reply(replyToken, messages, notify = false) {
+  return client.replyMessage(replyToken, messages, !notify);
+}
+
 // Google Calendar API設定
 const serviceAccount = {
   type: "service_account",
@@ -1487,27 +1492,27 @@ async function handleUserMessage(event) {
         let lastInfo = `📋 前回のご利用（${lastDate}）\n${lastBooking.menu_name}`;
         if (lastBooking.size) lastInfo += ` (${lastBooking.size})`;
         if (lastBooking.pattern) lastInfo += `\nパターン: ${lastBooking.pattern}`;
-        await client.replyMessage(event.replyToken, [
+        await reply(event.replyToken, [
           { type: 'text', text: lastInfo },
           buildCategoryFlex()
         ]);
         return;
       }
 
-      await client.replyMessage(event.replyToken, buildCategoryFlex());
+      await reply(event.replyToken, buildCategoryFlex());
       return;
     }
 
     if (userMessage === 'キャンセル') {
       const upcoming = await getUpcomingBookings(userId);
       if (upcoming.length === 0) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: '現在キャンセル可能なご予約はありません。'
         });
         return;
       }
-      await client.replyMessage(event.replyToken, buildCancelListFlex(upcoming));
+      await reply(event.replyToken, buildCancelListFlex(upcoming));
       return;
     }
 
@@ -1516,14 +1521,14 @@ async function handleUserMessage(event) {
       const booking = await getBookingById(bookingId);
 
       if (!booking || booking.status !== 'confirmed' || booking.line_user_id !== userId) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: 'このご予約は見つからないか、すでに処理済みです。'
         });
         return;
       }
 
-      await client.replyMessage(event.replyToken, {
+      await reply(event.replyToken, {
         type: 'flex',
         altText: 'キャンセルの確認',
         contents: {
@@ -1576,7 +1581,7 @@ async function handleUserMessage(event) {
       const booking = await getBookingById(bookingId);
 
       if (!booking || booking.status !== 'confirmed' || booking.line_user_id !== userId) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: 'このご予約は見つからないか、すでに処理済みです。'
         });
@@ -1585,7 +1590,7 @@ async function handleUserMessage(event) {
 
       const diffDays = Math.floor((new Date(booking.start_datetime) - new Date()) / (24 * 60 * 60 * 1000));
       if (diffDays < LEAD_DAYS) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: '申し訳ございません。キャンセルは2日前までとなっております。お手数ですがお電話にてご連絡ください。'
         });
@@ -1601,22 +1606,22 @@ async function handleUserMessage(event) {
         }
         await cancelBookingInDb(bookingId);
 
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: `✅ 以下のご予約をキャンセルしました。\n\n${booking.menu_name}\n日時: ${new Date(booking.start_datetime).toLocaleString('ja-JP')}\n\nまたのご利用をお待ちしております。`
-        });
+        }, true);
       } catch (error) {
         console.error('キャンセル処理エラー:', error);
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: 'キャンセル処理に失敗しました。お手数ですが再度お試しいただくか、お電話にてご連絡ください。'
-        });
+        }, true);
       }
       return;
     }
 
     if (userMessage === 'cancel_abort') {
-      await client.replyMessage(event.replyToken, {
+      await reply(event.replyToken, {
         type: 'text',
         text: 'キャンセルを取りやめました。'
       });
@@ -1624,12 +1629,12 @@ async function handleUserMessage(event) {
     }
 
     if (userMessage === 'category_wash') {
-      await client.replyMessage(event.replyToken, buildWashMenuFlex());
+      await reply(event.replyToken, buildWashMenuFlex());
       return;
     }
 
     if (userMessage === 'category_coating') {
-      await client.replyMessage(event.replyToken, buildCoatingMenuFlex());
+      await reply(event.replyToken, buildCoatingMenuFlex());
       return;
     }
 
@@ -1640,9 +1645,9 @@ async function handleUserMessage(event) {
 
       userState.step = 'select_size';
       if (menu.type === 'wash') {
-        await client.replyMessage(event.replyToken, buildSizeFlex(userMessage, menu));
+        await reply(event.replyToken, buildSizeFlex(userMessage, menu));
       } else {
-        await client.replyMessage(event.replyToken, buildCoatingSizeFlex(userMessage));
+        await reply(event.replyToken, buildCoatingSizeFlex(userMessage));
       }
 
       userStates.set(userId, userState);
@@ -1658,11 +1663,11 @@ async function handleUserMessage(event) {
       if (menu.type === 'wash') {
         userState.step = 'select_options';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        await reply(event.replyToken, buildOptionMenuFlex(userState));
       } else {
         userState.step = 'select_coating_pattern';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildPatternFlex(userState.selectedMenu, menu, userState.size));
+        await reply(event.replyToken, buildPatternFlex(userState.selectedMenu, menu, userState.size));
       }
       return;
     }
@@ -1673,7 +1678,7 @@ async function handleUserMessage(event) {
       userState.step = 'select_options';
       userStates.set(userId, userState);
 
-      await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+      await reply(event.replyToken, buildOptionMenuFlex(userState));
       return;
     }
 
@@ -1681,21 +1686,21 @@ async function handleUserMessage(event) {
       if (userMessage === 'option_done') {
         userState.step = 'confirm_summary';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildSummaryFlex(userState));
+        await reply(event.replyToken, buildSummaryFlex(userState));
         return;
       }
 
       if (userMessage === 'option_window') {
         userState.optionSubstep = 'window';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildWindowVariantFlex(getSizeBucket(userState.size)));
+        await reply(event.replyToken, buildWindowVariantFlex(getSizeBucket(userState.size)));
         return;
       }
 
       if (userMessage === 'option_wheel') {
         userState.optionSubstep = 'wheel_count';
         userStates.set(userId, userState);
-        await client.replyMessage(event.replyToken, buildWheelCountFlex());
+        await reply(event.replyToken, buildWheelCountFlex());
         return;
       }
 
@@ -1709,7 +1714,7 @@ async function handleUserMessage(event) {
         userState.options.push({ label: opt.name, price, duration: opt.duration });
         userStates.set(userId, userState);
 
-        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        await reply(event.replyToken, buildOptionMenuFlex(userState));
         return;
       }
 
@@ -1724,7 +1729,7 @@ async function handleUserMessage(event) {
         userState.optionSubstep = null;
         userStates.set(userId, userState);
 
-        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        await reply(event.replyToken, buildOptionMenuFlex(userState));
         return;
       }
 
@@ -1733,7 +1738,7 @@ async function handleUserMessage(event) {
         userState.optionSubstep = 'wheel_inch';
         userStates.set(userId, userState);
 
-        await client.replyMessage(event.replyToken, buildWheelInchFlex(userState.wheelCount));
+        await reply(event.replyToken, buildWheelInchFlex(userState.wheelCount));
         return;
       }
 
@@ -1749,7 +1754,7 @@ async function handleUserMessage(event) {
         userState.wheelCount = null;
         userStates.set(userId, userState);
 
-        await client.replyMessage(event.replyToken, buildOptionMenuFlex(userState));
+        await reply(event.replyToken, buildOptionMenuFlex(userState));
         return;
       }
     }
@@ -1772,7 +1777,7 @@ async function handleUserMessage(event) {
       const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
       const dayEvents = await getEventsInRange(dayStart, dayEnd);
 
-      await client.replyMessage(event.replyToken, buildTimeSelectionFlex(userState.selectedMenu, dateKeyStr, dayEvents, getMenuTheme(userState.selectedMenu)));
+      await reply(event.replyToken, buildTimeSelectionFlex(userState.selectedMenu, dateKeyStr, dayEvents, getMenuTheme(userState.selectedMenu)));
       return;
     }
 
@@ -1783,10 +1788,10 @@ async function handleUserMessage(event) {
       const bookingDateTime = new Date(year, month - 1, day, hour, minute);
 
       if (!isBusinessOpen(bookingDateTime)) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: '申し訳ございません。ご指定の日時は営業時間外です。\n営業時間: 10:00～18:00\n定休日: 月曜・火曜\nお手数ですが「予約」と送信してやり直してください。'
-        });
+        }, true);
         userStates.delete(userId);
         return;
       }
@@ -1798,10 +1803,10 @@ async function handleUserMessage(event) {
 
       const conflict = await hasConflict(bookingDateTime, provisionalEnd);
       if (conflict) {
-        await client.replyMessage(event.replyToken, {
+        await reply(event.replyToken, {
           type: 'text',
           text: '申し訳ございません。ちょうど今、その時間は埋まってしまいました。\nお手数ですが「予約」と送信してやり直してください。'
-        });
+        }, true);
         userStates.delete(userId);
         return;
       }
@@ -1841,20 +1846,20 @@ async function handleUserMessage(event) {
       confirmMessage += `合計金額: ¥${result.total.toLocaleString()}${result.hasQuoteOption ? '（＋応相談オプション別途）' : ''}\n`;
       confirmMessage += `\nご予約ありがとうございます！\n前日の夜にリマインドをお送りします。\nキャンセルは「キャンセル」と送信してください（2日前まで）。`;
 
-      await client.replyMessage(event.replyToken, {
+      await reply(event.replyToken, {
         type: 'text',
         text: confirmMessage
-      });
+      }, true);
 
       userStates.delete(userId);
       return;
     }
   } catch (error) {
     console.error('Error handling message:', error);
-    await client.replyMessage(event.replyToken, {
+    await reply(event.replyToken, {
       type: 'text',
       text: 'エラーが発生しました。もう一度お試しください。'
-    });
+    }, true);
   }
 }
 
