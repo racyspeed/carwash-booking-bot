@@ -1938,3 +1938,4 @@ app.listen(PORT, async () => {
   console.log(`📅 カレンダー: ${CALENDAR_ID}`);
   await initDatabase();
 });
+
