@@ -1478,7 +1478,7 @@ function buildCancelListFlex(bookings) {
 
 async function handleUserMessage(event) {
   const userId = event.source.userId;
-  const userMessage = event.message.text?.toLowerCase();
+  const userMessage = event.message.text;
   let userState = userStates.get(userId) || {};
 
   try {
@@ -1938,4 +1938,3 @@ app.listen(PORT, async () => {
   console.log(`📅 カレンダー: ${CALENDAR_ID}`);
   await initDatabase();
 });
-
