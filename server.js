@@ -1236,7 +1236,7 @@ async function replyDateSelection(replyToken, menuName) {
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today, theme);
 
-  await client.replyMessage(replyToken, {
+  await reply(replyToken, {
     type: 'flex',
     altText: '予約日を選択',
     contents: {
