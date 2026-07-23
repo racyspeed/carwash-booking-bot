@@ -1224,6 +1224,76 @@ function buildSummaryFlex(userState) {
   };
 }
 
+function buildQuickRepeatFlex(lastBooking, menu) {
+  const theme = getMenuTheme(lastBooking.menu_name);
+  const reconstructedState = {
+    selectedMenu: lastBooking.menu_name,
+    size: lastBooking.size,
+    pattern: lastBooking.pattern,
+    options: lastBooking.options || []
+  };
+  const summary = computeBookingSummary(reconstructedState);
+  const options = reconstructedState.options;
+
+  const rows = [];
+  rows.push({ type: 'text', text: lastBooking.menu_name, weight: 'bold', size: 'md', color: theme.main, wrap: true });
+  if (lastBooking.size) {
+    rows.push({ type: 'text', text: `サイズ：${lastBooking.size}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
+  }
+  if (menu.type === 'coating' && lastBooking.pattern && menu.patterns[lastBooking.pattern]) {
+    rows.push({ type: 'text', text: `研磨工程：${menu.patterns[lastBooking.pattern].label}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
+  }
+  if (options.length > 0) {
+    rows.push({ type: 'separator', margin: 'lg' });
+    options.forEach(o => {
+      rows.push({ type: 'text', text: `・${o.label}`, size: 'xs', color: BRAND.gray, margin: 'sm', wrap: true });
+    });
+  }
+  rows.push({ type: 'separator', margin: 'lg' });
+  rows.push({
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'lg',
+    contents: [
+      { type: 'text', text: '合計金額', weight: 'bold', size: 'md', color: theme.main, flex: 2 },
+      { type: 'text', text: `¥${summary.total.toLocaleString()}${summary.hasQuoteOption ? '〜' : ''}`, weight: 'bold', size: 'md', color: theme.main, align: 'end', flex: 3 }
+    ]
+  });
+
+  return {
+    type: 'flex',
+    altText: '前回と同じ内容で予約',
+    contents: {
+      type: 'bubble',
+      header: buildHeader('前回のご利用内容', '同じ内容で予約', theme.main),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: rows
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'md',
+            backgroundColor: theme.main,
+            cornerRadius: 'md',
+            action: { type: 'message', label: '同じ内容で予約する', text: 'quick_repeat' },
+            contents: [
+              { type: 'text', text: 'この内容で予約する（カレンダーへ）', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
 async function replyDateSelection(replyToken, menuName) {
   const today = new Date();
   const theme = getMenuTheme(menuName);
@@ -1487,19 +1557,46 @@ async function handleUserMessage(event) {
       userStates.set(userId, userState);
 
       const lastBooking = await getLastCompletedBooking(userId);
-      if (lastBooking) {
-        const lastDate = new Date(lastBooking.start_datetime).toLocaleDateString('ja-JP');
-        let lastInfo = `📋 前回のご利用（${lastDate}）\n${lastBooking.menu_name}`;
-        if (lastBooking.size) lastInfo += ` (${lastBooking.size})`;
-        if (lastBooking.pattern) lastInfo += `\nパターン: ${lastBooking.pattern}`;
+      const lastMenu = lastBooking ? MENUS[lastBooking.menu_name] : null;
+      const lastMenuStillValid = lastMenu && (
+        lastMenu.type === 'wash' ||
+        (lastMenu.type === 'coating' && lastBooking.pattern && lastMenu.patterns[lastBooking.pattern])
+      );
+
+      if (lastBooking && lastMenuStillValid) {
         await reply(event.replyToken, [
-          { type: 'text', text: lastInfo },
+          buildQuickRepeatFlex(lastBooking, lastMenu),
           buildCategoryFlex()
         ]);
         return;
       }
 
       await reply(event.replyToken, buildCategoryFlex());
+      return;
+    }
+
+    if (userMessage === 'quick_repeat') {
+      const lastBooking = await getLastCompletedBooking(userId);
+      const lastMenu = lastBooking ? MENUS[lastBooking.menu_name] : null;
+
+      if (!lastBooking || !lastMenu) {
+        await reply(event.replyToken, {
+          type: 'text',
+          text: '前回のご予約情報が見つかりませんでした。お手数ですが「予約」からやり直してください。'
+        });
+        return;
+      }
+
+      userState = {
+        selectedMenu: lastBooking.menu_name,
+        size: lastBooking.size,
+        pattern: lastBooking.pattern,
+        options: lastBooking.options || [],
+        step: 'select_date'
+      };
+      userStates.set(userId, userState);
+
+      await replyDateSelection(event.replyToken, userState.selectedMenu);
       return;
     }
 
