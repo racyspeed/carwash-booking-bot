@@ -553,7 +553,33 @@ function buildSelectableCard(label, subtitle, actionText, accentColor, bgColor) 
   };
 }
 
-function buildCategoryFlex() {
+function buildCategoryFlex(lastBooking, lastMenu) {
+  const quickRepeatBox = lastBooking && lastMenu ? (() => {
+    const reconstructedState = {
+      selectedMenu: lastBooking.menu_name,
+      size: lastBooking.size,
+      pattern: lastBooking.pattern,
+      options: lastBooking.options || []
+    };
+    const summary = computeBookingSummary(reconstructedState);
+    let subtitle = `${lastBooking.menu_name}`;
+    if (lastBooking.size) subtitle += `（${lastBooking.size}）`;
+    subtitle += ` ¥${summary.total.toLocaleString()}${summary.hasQuoteOption ? '〜' : ''}`;
+
+    return [{
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: 'lg',
+      backgroundColor: '#1E5631',
+      cornerRadius: 'md',
+      action: { type: 'message', label: '同じ内容で予約', text: 'quick_repeat' },
+      contents: [
+        { type: 'text', text: '🔁  前回と同じ内容で予約', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+        { type: 'text', text: subtitle, size: 'xs', color: '#D6EDDD', margin: 'xs', wrap: true }
+      ]
+    }];
+  })() : [];
+
   return {
     type: 'flex',
     altText: '洗車orコーティングを選択',
@@ -565,9 +591,11 @@ function buildCategoryFlex() {
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
+          ...quickRepeatBox,
           {
             type: 'box',
             layout: 'vertical',
+            margin: quickRepeatBox.length > 0 ? 'lg' : 'none',
             paddingAll: 'lg',
             backgroundColor: BRAND.navy,
             cornerRadius: 'md',
@@ -1224,75 +1252,6 @@ function buildSummaryFlex(userState) {
   };
 }
 
-function buildQuickRepeatFlex(lastBooking, menu) {
-  const theme = getMenuTheme(lastBooking.menu_name);
-  const reconstructedState = {
-    selectedMenu: lastBooking.menu_name,
-    size: lastBooking.size,
-    pattern: lastBooking.pattern,
-    options: lastBooking.options || []
-  };
-  const summary = computeBookingSummary(reconstructedState);
-  const options = reconstructedState.options;
-
-  const rows = [];
-  rows.push({ type: 'text', text: lastBooking.menu_name, weight: 'bold', size: 'md', color: theme.main, wrap: true });
-  if (lastBooking.size) {
-    rows.push({ type: 'text', text: `サイズ：${lastBooking.size}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
-  }
-  if (menu.type === 'coating' && lastBooking.pattern && menu.patterns[lastBooking.pattern]) {
-    rows.push({ type: 'text', text: `研磨工程：${menu.patterns[lastBooking.pattern].label}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
-  }
-  if (options.length > 0) {
-    rows.push({ type: 'separator', margin: 'lg' });
-    options.forEach(o => {
-      rows.push({ type: 'text', text: `・${o.label}`, size: 'xs', color: BRAND.gray, margin: 'sm', wrap: true });
-    });
-  }
-  rows.push({ type: 'separator', margin: 'lg' });
-  rows.push({
-    type: 'box',
-    layout: 'horizontal',
-    margin: 'lg',
-    contents: [
-      { type: 'text', text: '合計金額', weight: 'bold', size: 'md', color: theme.main, flex: 2 },
-      { type: 'text', text: `¥${summary.total.toLocaleString()}${summary.hasQuoteOption ? '〜' : ''}`, weight: 'bold', size: 'md', color: theme.main, align: 'end', flex: 3 }
-    ]
-  });
-
-  return {
-    type: 'flex',
-    altText: '前回と同じ内容で予約',
-    contents: {
-      type: 'bubble',
-      header: buildHeader('前回のご利用内容', '同じ内容で予約', theme.main),
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'lg',
-        contents: rows
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            paddingAll: 'md',
-            backgroundColor: theme.main,
-            cornerRadius: 'md',
-            action: { type: 'message', label: '同じ内容で予約する', text: 'quick_repeat' },
-            contents: [
-              { type: 'text', text: 'この内容で予約する（カレンダーへ）', color: '#FFFFFF', weight: 'bold', size: 'sm', align: 'center' }
-            ]
-          }
-        ]
-      }
-    }
-  };
-}
 
 async function replyDateSelection(replyToken, menuName) {
   const today = new Date();
@@ -1563,15 +1522,10 @@ async function handleUserMessage(event) {
         (lastMenu.type === 'coating' && lastBooking.pattern && lastMenu.patterns[lastBooking.pattern])
       );
 
-      if (lastBooking && lastMenuStillValid) {
-        await reply(event.replyToken, [
-          buildQuickRepeatFlex(lastBooking, lastMenu),
-          buildCategoryFlex()
-        ]);
-        return;
-      }
-
-      await reply(event.replyToken, buildCategoryFlex());
+      await reply(event.replyToken, buildCategoryFlex(
+        lastMenuStillValid ? lastBooking : null,
+        lastMenuStillValid ? lastMenu : null
+      ));
       return;
     }
 
