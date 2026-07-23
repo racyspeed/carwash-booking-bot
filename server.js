@@ -1026,7 +1026,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, the
 
 function generateHourlySlots() {
   const slots = [];
-  for (let h = 10; h <= 17; h++) {
+  for (let h = 10; h <= 15; h++) {
     slots.push(`${String(h).padStart(2, '0')}:00`);
   }
   return slots;
