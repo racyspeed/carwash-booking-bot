@@ -574,7 +574,7 @@ function buildCategoryFlex() {
             action: { type: 'message', label: 'マイページ', text: 'mypage' },
             contents: [
               { type: 'text', text: '📋  マイページ', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-              { type: 'text', text: 'これまでの施工履歴を見る・もう一度予約する', size: 'xs', color: '#D8D0EE', margin: 'xs', wrap: true }
+              { type: 'text', text: '今までの施工履歴を見る・もう一度予約する', size: 'xs', color: '#D8D0EE', margin: 'xs', wrap: true }
             ]
           },
           {
