@@ -249,21 +249,6 @@ async function saveBooking(userId, menuName, details, calendarEventId, totalPric
   }
 }
 
-async function getLastCompletedBooking(userId) {
-  try {
-    const res = await pool.query(
-      `SELECT * FROM bookings
-       WHERE line_user_id = $1 AND status = 'confirmed'
-       ORDER BY created_at DESC LIMIT 1`,
-      [userId]
-    );
-    return res.rows[0] || null;
-  } catch (error) {
-    console.error('前回予約取得エラー:', error);
-    return null;
-  }
-}
-
 async function getUpcomingBookings(userId) {
   try {
     const res = await pool.query(
@@ -568,33 +553,7 @@ function buildSelectableCard(label, subtitle, actionText, accentColor, bgColor) 
   };
 }
 
-function buildCategoryFlex(lastBooking, lastMenu) {
-  const quickRepeatBox = lastBooking && lastMenu ? (() => {
-    const reconstructedState = {
-      selectedMenu: lastBooking.menu_name,
-      size: lastBooking.size,
-      pattern: lastBooking.pattern,
-      options: lastBooking.options || []
-    };
-    const summary = computeBookingSummary(reconstructedState);
-    let subtitle = `${lastBooking.menu_name}`;
-    if (lastBooking.size) subtitle += `（${lastBooking.size}）`;
-    subtitle += ` ¥${summary.total.toLocaleString()}${summary.hasQuoteOption ? '〜' : ''}`;
-
-    return [{
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'lg',
-      backgroundColor: '#1E5631',
-      cornerRadius: 'md',
-      action: { type: 'message', label: '同じ内容で予約', text: 'quick_repeat' },
-      contents: [
-        { type: 'text', text: '🔁  前回と同じ内容で予約', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-        { type: 'text', text: subtitle, size: 'xs', color: '#D6EDDD', margin: 'xs', wrap: true }
-      ]
-    }];
-  })() : [];
-
+function buildCategoryFlex() {
   return {
     type: 'flex',
     altText: '洗車orコーティングを選択',
@@ -606,11 +565,22 @@ function buildCategoryFlex(lastBooking, lastMenu) {
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          ...quickRepeatBox,
           {
             type: 'box',
             layout: 'vertical',
-            margin: quickRepeatBox.length > 0 ? 'lg' : 'none',
+            paddingAll: 'lg',
+            backgroundColor: '#4A3B78',
+            cornerRadius: 'md',
+            action: { type: 'message', label: 'マイページ', text: 'mypage' },
+            contents: [
+              { type: 'text', text: '📋  マイページ', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+              { type: 'text', text: 'これまでの施工履歴を見る・もう一度予約する', size: 'xs', color: '#D8D0EE', margin: 'xs', wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'lg',
             paddingAll: 'lg',
             backgroundColor: BRAND.navy,
             cornerRadius: 'md',
@@ -631,19 +601,6 @@ function buildCategoryFlex(lastBooking, lastMenu) {
             contents: [
               { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
               { type: 'text', text: 'N°999"F"／N°320"F"／ナノ金', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
-            ]
-          },
-          {
-            type: 'box',
-            layout: 'vertical',
-            margin: 'lg',
-            paddingAll: 'lg',
-            backgroundColor: '#4A3B78',
-            cornerRadius: 'md',
-            action: { type: 'message', label: 'マイページ', text: 'mypage' },
-            contents: [
-              { type: 'text', text: '📋  マイページ', weight: 'bold', size: 'lg', color: '#FFFFFF' },
-              { type: 'text', text: 'これまでの施工履歴を見る', size: 'xs', color: '#D8D0EE', margin: 'xs', wrap: true }
             ]
           }
         ]
@@ -1610,42 +1567,7 @@ async function handleUserMessage(event) {
       userState = {};
       userStates.set(userId, userState);
 
-      const lastBooking = await getLastCompletedBooking(userId);
-      const lastMenu = lastBooking ? MENUS[lastBooking.menu_name] : null;
-      const lastMenuStillValid = lastMenu && (
-        lastMenu.type === 'wash' ||
-        (lastMenu.type === 'coating' && lastBooking.pattern && lastMenu.patterns[lastBooking.pattern])
-      );
-
-      await reply(event.replyToken, buildCategoryFlex(
-        lastMenuStillValid ? lastBooking : null,
-        lastMenuStillValid ? lastMenu : null
-      ));
-      return;
-    }
-
-    if (userMessage === 'quick_repeat') {
-      const lastBooking = await getLastCompletedBooking(userId);
-      const lastMenu = lastBooking ? MENUS[lastBooking.menu_name] : null;
-
-      if (!lastBooking || !lastMenu) {
-        await reply(event.replyToken, {
-          type: 'text',
-          text: '前回のご予約情報が見つかりませんでした。お手数ですが「予約」からやり直してください。'
-        });
-        return;
-      }
-
-      userState = {
-        selectedMenu: lastBooking.menu_name,
-        size: lastBooking.size,
-        pattern: lastBooking.pattern,
-        options: lastBooking.options || [],
-        step: 'select_date'
-      };
-      userStates.set(userId, userState);
-
-      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      await reply(event.replyToken, buildCategoryFlex());
       return;
     }
 
