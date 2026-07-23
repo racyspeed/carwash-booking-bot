@@ -871,7 +871,7 @@ function getMonthMatrix(year, monthIndex) {
   return weeks;
 }
 
-function getDateStatus(date, today, events) {
+function getDateStatus(date, today, events, spanDays = 1) {
   const dow = date.getDay();
   if (dow === 1 || dow === 2) return 'closed';
 
@@ -883,13 +883,20 @@ function getDateStatus(date, today, events) {
   if (diffDays < LEAD_DAYS) return 'lead'; // 2日前ルールにより予約不可
 
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-  const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+  const dayEnd = spanDays > 1
+    ? new Date(date.getFullYear(), date.getMonth(), date.getDate() + spanDays, 0, 0, 0)
+    : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
 
   const overlapping = events.filter(ev => {
     const evStart = new Date(ev.start.dateTime || ev.start.date);
     const evEnd = new Date(ev.end.dateTime || ev.end.date);
     return evStart < dayEnd && evEnd > dayStart;
   });
+
+  if (spanDays > 1) {
+    // 複数日にまたがる施工（コーティング）は、期間中に他の予約が1件でもあれば開始日にできない
+    return overlapping.length === 0 ? 'open' : 'blocked';
+  }
 
   const blockedByCoating = overlapping.some(ev =>
     ev.extendedProperties?.private?.bookingType === 'coating' ||
@@ -917,7 +924,7 @@ const STATUS_META_BASE = {
   past: { label: '－', color: '#DADADA', bg: '#F5F5F5' }
 };
 
-function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, theme) {
+function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, theme, spanDays = 1) {
   const weeks = getMonthMatrix(year, monthIndex);
   const monthLabel = `${year}年${monthIndex + 1}月`;
   const STATUS_META = {
@@ -959,7 +966,7 @@ function buildMonthCalendarBubble(menuName, year, monthIndex, events, today, the
           ]
         };
       }
-      const status = getDateStatus(date, today, events);
+      const status = getDateStatus(date, today, events, spanDays);
       const meta = STATUS_META[status];
       const clickable = status === 'open' || status === 'partial';
 
@@ -1238,17 +1245,26 @@ function buildSummaryFlex(userState) {
 }
 
 
-async function replyDateSelection(replyToken, menuName) {
+function getBookingSpanDays(userState) {
+  const menu = MENUS[userState.selectedMenu];
+  if (menu && menu.type === 'coating' && userState.pattern && menu.patterns[userState.pattern]) {
+    return menu.patterns[userState.pattern].days;
+  }
+  return 1;
+}
+
+async function replyDateSelection(replyToken, menuName, spanDays = 1) {
   const today = new Date();
   const theme = getMenuTheme(menuName);
 
   const rangeStart = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
-  const rangeEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59);
+  // 複数日にまたがる施工が月末付近でも正しく判定できるよう、取得範囲を余分に広げる
+  const rangeEnd = new Date(today.getFullYear(), today.getMonth() + 2, spanDays, 23, 59, 59);
   const events = await getEventsInRange(rangeStart, rangeEnd);
 
-  const currentMonthBubble = buildMonthCalendarBubble(menuName, today.getFullYear(), today.getMonth(), events, today, theme);
+  const currentMonthBubble = buildMonthCalendarBubble(menuName, today.getFullYear(), today.getMonth(), events, today, theme, spanDays);
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today, theme);
+  const nextMonthBubble = buildMonthCalendarBubble(menuName, nextMonth.getFullYear(), nextMonth.getMonth(), events, today, theme, spanDays);
 
   await reply(replyToken, {
     type: 'flex',
@@ -1614,7 +1630,7 @@ async function handleUserMessage(event) {
       };
       userStates.set(userId, userState);
 
-      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      await replyDateSelection(event.replyToken, userState.selectedMenu, getBookingSpanDays(userState));
       return;
     }
 
@@ -1877,7 +1893,7 @@ async function handleUserMessage(event) {
     if (userState.step === 'confirm_summary' && userMessage === 'confirm_proceed') {
       userState.step = 'select_date';
       userStates.set(userId, userState);
-      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      await replyDateSelection(event.replyToken, userState.selectedMenu, getBookingSpanDays(userState));
       return;
     }
 
@@ -1913,14 +1929,20 @@ async function handleUserMessage(event) {
 
       const menu = MENUS[userState.selectedMenu];
       const optionsMinutes = (userState.options || []).reduce((sum, o) => sum + (o.duration || 0), 0);
-      const durationMinutes = (menu.type === 'wash' ? menu.duration[userState.size] : 60) + optionsMinutes;
-      const provisionalEnd = new Date(bookingDateTime.getTime() + durationMinutes * 60000);
+      let provisionalEnd;
+      if (menu.type === 'wash') {
+        const durationMinutes = menu.duration[userState.size] + optionsMinutes;
+        provisionalEnd = new Date(bookingDateTime.getTime() + durationMinutes * 60000);
+      } else {
+        const patternDays = menu.patterns[userState.pattern].days;
+        provisionalEnd = new Date(bookingDateTime.getTime() + patternDays * 24 * 60 * 60 * 1000);
+      }
 
       const conflict = await hasConflict(bookingDateTime, provisionalEnd);
       if (conflict) {
         await reply(event.replyToken, {
           type: 'text',
-          text: '申し訳ございません。ちょうど今、その時間は埋まってしまいました。\nお手数ですが「予約」と送信してやり直してください。'
+          text: '申し訳ございません。ちょうど今、その日程は埋まってしまいました。\nお手数ですが「予約」と送信してやり直してください。'
         }, true);
         userStates.delete(userId);
         return;
