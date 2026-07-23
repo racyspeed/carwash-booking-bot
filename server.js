@@ -253,8 +253,8 @@ async function getLastCompletedBooking(userId) {
   try {
     const res = await pool.query(
       `SELECT * FROM bookings
-       WHERE line_user_id = $1 AND status = 'confirmed' AND start_datetime < NOW()
-       ORDER BY start_datetime DESC LIMIT 1`,
+       WHERE line_user_id = $1 AND status = 'confirmed'
+       ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     return res.rows[0] || null;
