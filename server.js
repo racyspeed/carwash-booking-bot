@@ -1159,9 +1159,9 @@ function buildSummaryFlex(userState) {
     rows.push({ type: 'text', text: `サイズ：${userState.size}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
   }
   if (menu.type === 'coating' && userState.pattern) {
-    rows.push({ type: 'text', text: `研磨工程：${menu.patterns[userState.pattern].label}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
+    rows.push({ type: 'text', text: `研磨工程：${userState.pattern}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
   }
-  rows.push({ type: 'text', text: `施工目安時間：${summary.durationLabel}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
+  rows.push({ type: 'text', text: `施工目安時間：${summary.durationLabel}`, size: 'sm', color: BRAND.gray, margin: 'sm', wrap: true });
   rows.push({ type: 'text', text: `本体価格：¥${summary.basePrice.toLocaleString()}`, size: 'sm', color: BRAND.gray, margin: 'sm' });
 
   if (options.length > 0) {
