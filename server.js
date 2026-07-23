@@ -1785,9 +1785,10 @@ async function handleUserMessage(event) {
       return;
     }
 
-    if (userState.step === 'select_size' && userMessage?.startsWith('size_')) {
+    if (userMessage?.startsWith('size_') && userState.selectedMenu) {
       const size = userMessage.replace('size_', '').toUpperCase();
       userState.size = size;
+      userState.options = []; // サイズが変わるとオプション料金の基準が変わるため選び直し
       userStates.set(userId, userState);
 
       const menu = MENUS[userState.selectedMenu];
@@ -1803,7 +1804,7 @@ async function handleUserMessage(event) {
       return;
     }
 
-    if (userState.step === 'select_coating_pattern' && userMessage?.startsWith('pattern_')) {
+    if (userMessage?.startsWith('pattern_') && userState.selectedMenu && MENUS[userState.selectedMenu]?.type === 'coating' && userState.size) {
       const pattern = userMessage.replace('pattern_', '');
       userState.pattern = pattern;
       userState.step = 'select_options';
@@ -1813,7 +1814,8 @@ async function handleUserMessage(event) {
       return;
     }
 
-    if (userState.step === 'select_options') {
+    if (userState.step === 'select_options' || (userState.selectedMenu && userState.size && (userMessage?.startsWith('option_') || userMessage?.startsWith('window_') || userMessage?.startsWith('wheel_')))) {
+      userState.step = 'select_options';
       if (userMessage === 'option_done') {
         userState.step = 'confirm_summary';
         userStates.set(userId, userState);
