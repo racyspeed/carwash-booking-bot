@@ -279,6 +279,21 @@ async function getUpcomingBookings(userId) {
   }
 }
 
+async function getBookingHistory(userId, limit = 10) {
+  try {
+    const res = await pool.query(
+      `SELECT * FROM bookings
+       WHERE line_user_id = $1 AND status = 'confirmed'
+       ORDER BY start_datetime DESC LIMIT $2`,
+      [userId, limit]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('施工履歴取得エラー:', error);
+    return [];
+  }
+}
+
 async function getBookingById(id) {
   try {
     const res = await pool.query(`SELECT * FROM bookings WHERE id = $1`, [id]);
@@ -616,6 +631,19 @@ function buildCategoryFlex(lastBooking, lastMenu) {
             contents: [
               { type: 'text', text: '✨  コーティング', weight: 'bold', size: 'lg', color: '#FFFFFF' },
               { type: 'text', text: 'N°999"F"／N°320"F"／ナノ金', size: 'xs', color: '#F3E7C6', margin: 'xs', wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'lg',
+            paddingAll: 'lg',
+            backgroundColor: '#4A3B78',
+            cornerRadius: 'md',
+            action: { type: 'message', label: 'マイページ', text: 'mypage' },
+            contents: [
+              { type: 'text', text: '📋  マイページ', weight: 'bold', size: 'lg', color: '#FFFFFF' },
+              { type: 'text', text: 'これまでの施工履歴を見る', size: 'xs', color: '#D8D0EE', margin: 'xs', wrap: true }
             ]
           }
         ]
@@ -1503,6 +1531,73 @@ function buildCancelListFlex(bookings) {
   };
 }
 
+function buildHistoryFlex(bookings) {
+  const bubbles = bookings.map(b => {
+    const menu = MENUS[b.menu_name];
+    const theme = menu ? getMenuTheme(b.menu_name) : { main: '#4A3B78', bg: '#EDE9F5' };
+    const isPast = new Date(b.start_datetime) < new Date();
+    const options = b.options || [];
+
+    const rows = [
+      { type: 'text', text: new Date(b.start_datetime).toLocaleDateString('ja-JP'), size: 'xs', color: BRAND.gray },
+      { type: 'text', text: b.menu_name, weight: 'bold', size: 'sm', color: theme.main, margin: 'xs', wrap: true }
+    ];
+    if (b.size) rows.push({ type: 'text', text: `サイズ: ${b.size}`, size: 'xs', color: BRAND.gray, margin: 'xs' });
+    if (b.pattern && menu && menu.type === 'coating' && menu.patterns[b.pattern]) {
+      rows.push({ type: 'text', text: `研磨工程: ${menu.patterns[b.pattern].label}`, size: 'xs', color: BRAND.gray, margin: 'xs', wrap: true });
+    }
+    if (options.length > 0) {
+      rows.push({ type: 'separator', margin: 'sm' });
+      options.forEach(o => {
+        rows.push({ type: 'text', text: `・${o.label}`, size: 'xxs', color: BRAND.gray, margin: 'xs', wrap: true });
+      });
+    }
+    if (b.total_price) {
+      rows.push({ type: 'separator', margin: 'sm' });
+      rows.push({ type: 'text', text: `合計: ¥${b.total_price.toLocaleString()}`, weight: 'bold', size: 'xs', color: theme.main, margin: 'sm' });
+    }
+
+    const canRepeat = !!menu;
+
+    return {
+      type: 'bubble',
+      size: 'kilo',
+      header: buildHeader(isPast ? '施工履歴' : 'ご予約中', b.menu_name.length > 12 ? b.menu_name.slice(0, 12) + '…' : b.menu_name, theme.main),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        contents: rows
+      },
+      footer: canRepeat ? {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'sm',
+            backgroundColor: theme.main,
+            cornerRadius: 'md',
+            action: { type: 'message', label: 'もう一度予約する', text: `repeat_booking_${b.id}` },
+            contents: [{ type: 'text', text: 'もう一度予約する', color: '#FFFFFF', weight: 'bold', size: 'xs', align: 'center' }]
+          }
+        ]
+      } : undefined
+    };
+  });
+
+  return {
+    type: 'flex',
+    altText: '施工履歴',
+    contents: {
+      type: 'carousel',
+      contents: bubbles
+    }
+  };
+}
+
 // ==== メッセージハンドラ ====
 
 async function handleUserMessage(event) {
@@ -1546,6 +1641,53 @@ async function handleUserMessage(event) {
         size: lastBooking.size,
         pattern: lastBooking.pattern,
         options: lastBooking.options || [],
+        step: 'select_date'
+      };
+      userStates.set(userId, userState);
+
+      await replyDateSelection(event.replyToken, userState.selectedMenu);
+      return;
+    }
+
+    if (userMessage === 'mypage') {
+      const history = await getBookingHistory(userId);
+      if (history.length === 0) {
+        await reply(event.replyToken, {
+          type: 'text',
+          text: 'まだご利用履歴がありません。'
+        });
+        return;
+      }
+      await reply(event.replyToken, buildHistoryFlex(history));
+      return;
+    }
+
+    if (userMessage?.startsWith('repeat_booking_')) {
+      const bookingId = parseInt(userMessage.replace('repeat_booking_', ''), 10);
+      const booking = await getBookingById(bookingId);
+
+      if (!booking || booking.line_user_id !== userId) {
+        await reply(event.replyToken, {
+          type: 'text',
+          text: 'この予約情報が見つかりませんでした。'
+        });
+        return;
+      }
+
+      const menu = MENUS[booking.menu_name];
+      if (!menu) {
+        await reply(event.replyToken, {
+          type: 'text',
+          text: '申し訳ございません。このメニューは現在ご用意がありません。お手数ですが「予約」から新しくお選びください。'
+        });
+        return;
+      }
+
+      userState = {
+        selectedMenu: booking.menu_name,
+        size: booking.size,
+        pattern: booking.pattern,
+        options: booking.options || [],
         step: 'select_date'
       };
       userStates.set(userId, userState);
